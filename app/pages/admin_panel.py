@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from app.database import get_supabase_admin
 from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
+from app.notifications import send_approval_email, send_rejection_email
 
 def render_admin_panel():
     """Renderiza el panel de gestión de permisos para administradores."""
@@ -62,14 +63,16 @@ def render_admin_panel():
                     "admin_nota": admin_nota
                 }
                 supabase.table("solicitudes").update(update_data).eq("id", sol["id"]).execute()
+                send_approval_email(sol, profile)
                 st.success("Solicitud APROBADA.")
                 st.rerun()
-                
+
             if btn_col2.button("Rechazar", key=f"reject_{sol['id']}", type="secondary"):
                 update_data = {
                     "estado": "rechazado",
                     "admin_nota": admin_nota
                 }
                 supabase.table("solicitudes").update(update_data).eq("id", sol["id"]).execute()
+                send_rejection_email(sol, profile, admin_nota)
                 st.error("Solicitud RECHAZADA.")
                 st.rerun()

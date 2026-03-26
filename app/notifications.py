@@ -4,40 +4,89 @@ from email.mime.multipart import MIMEMultipart
 from app.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
 from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
 
-def send_approval_email(solicitud, user_profile):
-    """Envía un correo de aprobación al usuario."""
+
+def _send_email(to: str | list, subject: str, body: str) -> bool:
+    """Envía un correo. Retorna True si fue exitoso."""
     if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD]):
         print("SMTP no configurado. Saltando envío de correo.")
         return False
-
     try:
+        recipients = to if isinstance(to, list) else [to]
         msg = MIMEMultipart()
         msg['From'] = SMTP_FROM
-        msg['To'] = user_profile['email']
-        msg['Subject'] = f"Permiso Aprobado — {solicitud['fecha_inicio']}"
-
-        tipo_label = TIPO_PERMISO_LABELS.get(solicitud['tipo_permiso'], solicitud['tipo_permiso'])
-        jornada_label = JORNADA_LABELS.get(solicitud['jornada'], solicitud['jornada'])
-
-        body = f"""
-        Estimado/a {user_profile['full_name']},
-
-        Te informamos que tu solicitud de permiso de tipo "{tipo_label}" 
-        para el día {solicitud['fecha_inicio']} ({jornada_label}) ha sido APROBADA.
-
-        Este es un mensaje automático del Sistema de Gestión de Permisos del Colegio TGS.
-        """
-        
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
-
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(SMTP_FROM, user_profile['email'], text)
+        server.sendmail(SMTP_FROM, recipients, msg.as_string())
         server.quit()
-        
         return True
     except Exception as e:
         print(f"Error al enviar correo: {e}")
         return False
+
+
+def send_new_request_email(solicitud, user_profile, admin_emails: list) -> bool:
+    """Notifica a los administradores sobre una nueva solicitud."""
+    if not admin_emails:
+        return False
+    tipo_label = TIPO_PERMISO_LABELS.get(solicitud['tipo_permiso'], solicitud['tipo_permiso'])
+    jornada_label = JORNADA_LABELS.get(solicitud['jornada'], solicitud['jornada'])
+    subject = f"Nueva solicitud de permiso — {user_profile['full_name']}"
+    body = f"""
+Nueva solicitud de permiso recibida:
+
+Docente: {user_profile['full_name']} ({user_profile['email']})
+Tipo: {tipo_label}
+Fecha: {solicitud['fecha_inicio']}
+Jornada: {jornada_label}
+Motivo: {solicitud.get('motivo') or 'Sin motivo'}
+
+Ingresa al sistema para revisarla y aprobarla o rechazarla.
+
+Este es un mensaje automático del Sistema de Gestión de Permisos del Colegio TGS.
+    """
+    return _send_email(admin_emails, subject, body)
+
+
+def send_approval_email(solicitud, user_profile) -> bool:
+    """Notifica al usuario que su solicitud fue aprobada."""
+    tipo_label = TIPO_PERMISO_LABELS.get(solicitud['tipo_permiso'], solicitud['tipo_permiso'])
+    jornada_label = JORNADA_LABELS.get(solicitud['jornada'], solicitud['jornada'])
+    subject = f"Permiso Aprobado — {solicitud['fecha_inicio']}"
+    body = f"""
+Estimado/a {user_profile['full_name']},
+
+Tu solicitud de permiso ha sido APROBADA.
+
+Tipo: {tipo_label}
+Fecha: {solicitud['fecha_inicio']}
+Jornada: {jornada_label}
+
+Este es un mensaje automático del Sistema de Gestión de Permisos del Colegio TGS.
+    """
+    return _send_email(user_profile['email'], subject, body)
+
+
+def send_rejection_email(solicitud, user_profile, admin_nota: str = "") -> bool:
+    """Notifica al usuario que su solicitud fue rechazada."""
+    tipo_label = TIPO_PERMISO_LABELS.get(solicitud['tipo_permiso'], solicitud['tipo_permiso'])
+    jornada_label = JORNADA_LABELS.get(solicitud['jornada'], solicitud['jornada'])
+    subject = f"Solicitud de Permiso Rechazada — {solicitud['fecha_inicio']}"
+    nota_linea = f"\nNota del administrador: {admin_nota}" if admin_nota else ""
+    body = f"""
+Estimado/a {user_profile['full_name']},
+
+Tu solicitud de permiso ha sido RECHAZADA.
+
+Tipo: {tipo_label}
+Fecha: {solicitud['fecha_inicio']}
+Jornada: {jornada_label}{nota_linea}
+
+Si tienes dudas, contacta a la dirección del colegio.
+
+Este es un mensaje automático del Sistema de Gestión de Permisos del Colegio TGS.
+    """
+    return _send_email(user_profile['email'], subject, body)
