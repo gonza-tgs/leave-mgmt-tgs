@@ -24,8 +24,21 @@ def get_supabase_admin() -> Client:
 def get_user_profile(user_id: str):
     """Obtiene el perfil del usuario por ID."""
     supabase = get_supabase()
-    result = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
-    return result.data
+    try:
+        result = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+        return result.data
+    except Exception:
+        return None
+
+def create_user_profile(user_id: str, email: str, full_name: str) -> dict:
+    """Crea un perfil nuevo. Si no hay usuarios, asigna rol admin."""
+    supabase = get_supabase_admin()
+    count_result = supabase.table("profiles").select("id", count="exact").execute()
+    is_first_user = (count_result.count or 0) == 0
+    rol = "admin" if is_first_user else "user"
+    profile_data = {"id": user_id, "email": email, "full_name": full_name, "rol": rol}
+    result = supabase.table("profiles").insert(profile_data).execute()
+    return result.data[0] if result.data else None
 
 # --- Consultas de Solicitudes ---
 
