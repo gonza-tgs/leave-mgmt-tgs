@@ -31,6 +31,7 @@ leave-mgmt/
 │   └── config.toml                  # Tema visual
 │
 ├── app/
+│   ├── __init__.py                  # Marcador de paquete
 │   ├── config.py                    # Carga .env, constantes globales
 │   ├── auth.py                      # Supabase Auth + validación de dominio
 │   ├── database.py                  # Cliente Supabase, todas las queries
@@ -38,6 +39,7 @@ leave-mgmt/
 │   ├── constants.py                 # Labels en español para enums de BD
 │   │
 │   ├── pages/
+│   │   ├── __init__.py              # Marcador de paquete
 │   │   ├── login.py                 # Página de inicio de sesión
 │   │   ├── dashboard.py             # Historial + días restantes (usuario)
 │   │   ├── submit_request.py        # Formulario nueva solicitud
@@ -46,6 +48,7 @@ leave-mgmt/
 │   │   └── admin_users.py           # Gestión de roles de usuario
 │   │
 │   └── services/
+│       ├── __init__.py              # Marcador de paquete
 │       └── leave_rules.py           # Motor de reglas de negocio (sin Streamlit)
 ```
 
@@ -317,7 +320,7 @@ El parámetro `db_queries` es un dict de funciones pasadas desde `database.py` (
   - Estado (`st.multiselect`)
 - `st.toggle("Agrupar por usuario")`
 - `st.radio("Ordenar por fecha", ["Descendente", "Ascendente"])`
-- Resultados en `st.dataframe(use_container_width=True)`
+- Resultados en `st.dataframe(width='stretch')`
 - `st.download_button("Exportar CSV")` → `df.to_csv(index=False)`
 - `es_pagado` solo visible en sección "Vista Administrativa" del panel
 
@@ -466,5 +469,8 @@ dependencies = [
 | 3 | Reglas de Negocio | Motor auto-aprobación `leave_rules.py` |
 | 4 | Páginas Usuario | Formulario solicitud + historial personal |
 | 5 | Panel Admin | Gestión, reportes, administración usuarios |
+| 6 | Notificaciones | Emails SMTP en español |
+| 7 | Hardening | Null safety, caché, errores, tema visual |
+ración usuarios |
 | 6 | Notificaciones | Emails SMTP en español |
 | 7 | Hardening | Null safety, caché, errores, tema visual |

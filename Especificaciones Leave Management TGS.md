@@ -16,6 +16,7 @@ Desarrollo de una aplicación web para la gestión de permisos laborales del Col
 ### **3.1 Perfil Usuario**
 
 * Solicitar permisos administrativos, con goce de sueldo o sin goce de sueldo (Formulario).  
+  * **Motivo:** Campo obligatorio con selector de opciones (Trámites, Médicos, Personal, Otro) y validación de texto libre si se elige "Otro".
 * Visualizar historial de solicitudes personales.  
 * Ver estado de los días administrativos restantes.
 
