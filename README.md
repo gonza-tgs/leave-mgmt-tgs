@@ -1,5 +1,7 @@
 # Leave Management App — Colegio TGS
 
+[English version (README_EN.md)](README_EN.md)
+
 Sistema web para la gestión automatizada y manual de permisos laborales del Colegio TGS, desarrollado con **Streamlit** y **Supabase**.
 
 ## 🚀 Características
