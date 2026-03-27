@@ -59,4 +59,4 @@ def render_dashboard(user):
     display_df = display_df.fillna("-")
     
     st.subheader("Mi Historial")
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    st.dataframe(display_df, width='stretch', hide_index=True)

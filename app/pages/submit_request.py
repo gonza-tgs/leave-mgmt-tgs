@@ -33,12 +33,20 @@ def render_submit_request(user):
             horizontal=True
         )
         
-        # Motivo (opcional)
-        motivo = st.text_area("Motivo o detalles (opcional)", max_chars=300)
-        
+        # Motivo (obligatorio)
+        MOTIVO_OPCIONES = ["Trámites", "Médicos", "Personal", "Otro"]
+        motivo_tipo = st.selectbox("Motivo *", options=MOTIVO_OPCIONES)
+
+        motivo_detalle = ""
+        if motivo_tipo == "Otro":
+            motivo_detalle = st.text_input("Especificar motivo *", max_chars=300)
+
         submit_button = st.form_submit_button("Enviar Solicitud", icon="📤")
-        
+
         if submit_button:
+            if motivo_tipo == "Otro" and not motivo_detalle.strip():
+                st.error("Por favor especifica el motivo.")
+                st.stop()
             # Procesar solicitud
             with st.spinner("Procesando solicitud..."):
                 try:
@@ -65,6 +73,8 @@ def render_submit_request(user):
                     # administrativo/con_goce -> true; sin_goce -> false
                     es_pagado = tipo_permiso in ["administrativo", "con_goce"]
                     
+                    motivo = motivo_tipo if motivo_tipo != "Otro" else f"Otro: {motivo_detalle.strip()}"
+
                     solicitud_data = {
                         "user_id": user["id"],
                         "tipo_permiso": tipo_permiso,

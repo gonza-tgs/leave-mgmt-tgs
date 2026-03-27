@@ -88,9 +88,9 @@ def render_admin_reports():
     if group_by_user:
         for user_name, user_df in display_df.groupby("Funcionario"):
             st.write(f"📂 **{user_name}**")
-            st.dataframe(user_df.drop(columns="Funcionario"), use_container_width=True, hide_index=True)
+            st.dataframe(user_df.drop(columns="Funcionario"), width='stretch', hide_index=True)
     else:
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.dataframe(display_df, width='stretch', hide_index=True)
         
     # --- Exportación ---
     csv = display_df.to_csv(index=False).encode('utf-8')
