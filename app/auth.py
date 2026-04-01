@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from app.database import get_supabase, get_user_profile, create_user_profile
 from app.config import ALLOWED_DOMAIN
 
@@ -18,8 +19,11 @@ def sign_in_with_google():
         }
     })
     if response and hasattr(response, "url") and response.url:
-        st.code(response.url, language=None)
-        st.warning("DEBUG: Copia esta URL y ábrela manualmente en el navegador. ¿Empieza con accounts.google.com o con supabase.co?")
+        components.html(
+            f'<script>window.top.location.href = "{response.url}";</script>',
+            height=0,
+        )
+        st.info("Redirigiendo a Google para iniciar sesión...")
     else:
         st.error("No se pudo iniciar el flujo de autenticación. Verifica la configuración de Supabase.")
 
