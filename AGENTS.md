@@ -1,6 +1,6 @@
 # GEMINI.md - Leave Management App (Colegio TGS)
 
-## Project Overview
+## Project Overview 🛩️
 The **Leave Management App** is a web-based platform designed for **Colegio TGS** to automate and manage employee leave requests. It handles different types of leave (Administrative, Paid, and Unpaid) with automated business rules for administrative days and a manual approval workflow for others.
 
 ### Key Technologies
