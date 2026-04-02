@@ -86,13 +86,6 @@ def render_login_page():
 
     oauth_url = _get_oauth_url()
     if oauth_url:
-        st.markdown(
-            f'<a href="{oauth_url}" target="_self" style="'
-            'display:block;text-align:center;padding:0.5rem 1rem;'
-            'background-color:#1a5276;color:white;text-decoration:none;'
-            'border-radius:0.5rem;font-weight:600;font-size:1rem;">'
-            '🔑 Iniciar sesión con Google</a>',
-            unsafe_allow_html=True,
-        )
+        st.link_button("🔑 Iniciar sesión con Google", url=oauth_url, use_container_width=True)
     else:
         st.error("No se pudo iniciar el flujo de autenticación. Verifica la configuración de Supabase.")
