@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 .streamlit/secrets.toml
+
+# todo
+todo.md
