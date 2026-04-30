@@ -2,23 +2,25 @@
 
 [English version (README_EN.md)](README_EN.md)
 
-Sistema web denominado **"Quiero mi Permiso!"** para la gestión automatizada y manual de permisos laborales del Colegio TGS, desarrollado con **Streamlit** y **Supabase**.
+Sistema web denominado **"Quiero mi Permiso!"** para la gestión de permisos laborales del Colegio TGS, desarrollado con **Streamlit** y **Supabase**.
 
-## 🚀 Características
-- **Autenticación Institucional:** Login con Google OAuth restringido al dominio `@colegiotgs.cl`.
-- **Motor de Reglas:** Aprobación automática basada en cupos anuales y restricciones de calendario (feriados nacionales, días adyacentes, etc.).
-- **Bloqueo de Días No Laborales:** Restricción absoluta para fines de semana, feriados nacionales y feriados internos.
-- **Panel de Administración:** Gestión de solicitudes, reportes dinámicos, administración de roles (incluyendo **Administrador de Solo Lectura**) y gestión de calendario interno.
-- **Transparencia:** Visualización detallada del motivo de derivación a revisión manual directamente en el panel administrativo.
-- **Notificaciones:** Envío automático de correos de aprobación/rechazo vía SMTP.
+## Caracteristicas
+- **Autenticacion Institucional:** Login con Google OAuth restringido al dominio `@colegiotgs.cl`.
+- **Flujo Manual:** Todas las solicitudes requieren aprobacion manual de la Direccion (no hay auto-aprobacion).
+- **Motor de Reglas:** Validacion en Python de cupos anuales, restricciones de calendario (lunes/viernes, feriados nacionales, visperas/dias posteriores a feriados), dias consecutivos y limite institucional de 2 permisos administrativos por dia.
+- **Limite Atomico:** Funcion RPC en Postgres (`insert_solicitud_with_limit`) que re-chequea el limite institucional en insercion para prevenir condiciones de carrera.
+- **Bloqueo de Dias:** Restriccion absoluta para fines de semana, feriados nacionales, feriados internos y periodos bloqueados definidos por admin.
+- **Panel de Administracion:** Gestion de solicitudes, reportes dinamicos, administracion de roles (incluyendo **Administrador de Solo Lectura**), gestion de dias no laborables y periodos bloqueados.
+- **Material de Reemplazo:** Toggle para marcar si el docente entrego material para el dia del permiso.
+- **Notificaciones:** Envio automatico de correos de aprobacion/rechazo via SMTP.
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnologico
 - **Frontend/Backend:** [Streamlit](https://streamlit.io/)
 - **Base de Datos:** [Supabase](https://supabase.com/) (PostgreSQL)
-- **Gestión de Dependencias:** [uv](https://github.com/astral-sh/uv)
+- **Gestion de Dependencias:** [uv](https://github.com/astral-sh/uv)
 - **Calendario:** `holidays` (Chile)
 
-## 📋 Configuración Local
+## Configuracion Local
 
 1. **Instalar dependencias:**
    ```bash
@@ -26,7 +28,7 @@ Sistema web denominado **"Quiero mi Permiso!"** para la gestión automatizada y 
    ```
 
 2. **Configurar Secretos:**
-   Crea un archivo `.streamlit/secrets.toml` en la raíz del proyecto con las siguientes claves:
+   Crea un archivo `.streamlit/secrets.toml` en la raiz del proyecto con las siguientes claves:
    ```toml
    SUPABASE_URL = "https://tu-proyecto.supabase.co"
    SUPABASE_KEY = "sb_publishable"
@@ -40,45 +42,72 @@ Sistema web denominado **"Quiero mi Permiso!"** para la gestión automatizada y 
    ```
 
 3. **Base de Datos:**
-   Ejecuta el script SQL incluido en `Plan_Implementacion_Leave_MGMT_App_TGS.md` en el Editor SQL de Supabase para crear las tablas, enums y políticas de seguridad (RLS).
+   Ejecuta los scripts SQL en este orden en el Editor SQL de Supabase:
+   - `sql/reset.sql` — Schema completo (tablas, enums, triggers, RLS, indices)
+   - `sql/migration_v2.sql` — Columna `material_entregado` + tabla `periodos_bloqueados`
+   - `sql/migration_add_admin_read_only.sql` — Valor `admin_read_only` en enum de roles
+   - `sql/migration_rpc_insert_with_limit.sql` — Funcion RPC para limite atomico
 
 4. **Ejecutar la App:**
    ```bash
    uv run streamlit run main.py
    ```
 
-## 🚀 Despliegue y Configuración de Servicios
-
-Para que la aplicación sea plenamente funcional, es necesario configurar los siguientes servicios externos:
+## Despliegue y Configuracion de Servicios
 
 ### 1. Base de Datos (Supabase)
 1. **Proyecto:** Crea un proyecto en [Supabase](https://supabase.com/).
-2. **Tablas y RLS:** Ejecuta el script SQL incluido en `Plan_Implementacion_Leave_MGMT_App_TGS.md` en el Editor SQL de Supabase.
-3. **Google Auth:** Habilita el proveedor Google en `Authentication > Providers`. Necesitarás el Client ID y Secret de GCP.
+2. **Tablas y RLS:** Ejecuta los scripts SQL del directorio `sql/` en orden.
+3. **Google Auth:** Habilita el proveedor Google en `Authentication > Providers`.
 
-### 2. Autenticación Google (GCP)
+### 2. Autenticacion Google (GCP)
 1. **Proyecto:** Crea un proyecto en [Google Cloud Console](https://console.cloud.google.com/).
-2. **OAuth Consent Screen:** Configúrala en modo **Interno** (Internal) para restringir el acceso exclusivamente al dominio `@colegiotgs.cl`.
-3. **Credenciales:** Crea un "ID de cliente de OAuth 2.0" (Aplicación Web).
-4. **Redirección:** Añade la URL de callback que te proporciona Supabase en su panel de configuración de Google.
+2. **OAuth Consent Screen:** Configurala en modo **Interno** (Internal) para restringir el acceso al dominio `@colegiotgs.cl`.
+3. **Credenciales:** Crea un "ID de cliente de OAuth 2.0" (Aplicacion Web).
+4. **Redireccion:** Agrega la URL de callback que te proporciona Supabase.
 
 ### 3. Notificaciones (SMTP)
 1. **Cuenta:** Crea una cuenta de correo dedicada (ej: `notificaciones@colegiotgs.cl`).
-2. **Seguridad:** Habilita la "Verificación en 2 pasos" en la cuenta de Google.
-3. **Clave de Aplicación:** Genera una **Contraseña de aplicación** específica para el servicio de correo. Esta clave es la que debe usarse en los Secrets, no la contraseña personal de la cuenta.
+2. **Seguridad:** Habilita la "Verificacion en 2 pasos" en la cuenta de Google.
+3. **Clave de Aplicacion:** Genera una **Contrasena de aplicacion** para el servicio de correo.
 
 ### 4. Hosting (Streamlit Cloud)
 1. Sube el repositorio a GitHub.
 2. Conecta tu cuenta en [Streamlit Cloud](https://share.streamlit.io/).
-3. **Secrets:** Configura los secretos en el panel de control de Streamlit pegando el contenido de tu `.streamlit/secrets.toml`.
+3. **Secrets:** Configura los secretos pegando el contenido de `.streamlit/secrets.toml`.
 
-## 📂 Estructura del Proyecto
-- `main.py`: Punto de entrada y enrutamiento.
-- `app/auth.py`: Lógica de autenticación y sesiones.
-- `app/database.py`: Cliente y queries de Supabase.
-- `app/services/leave_rules.py`: Motor de reglas de negocio.
-- `app/pages/`: Páginas de la interfaz (Dashboard, Solicitud, Admin Panel, Reportes, Usuarios, **Feriados**).
-- `app/constants.py`: Mapeo de enums y labels en español.
-- `GEMINI.md`: Contexto técnico para desarrollo asistido por IA.
-py`: Mapeo de enums y labels en español.
-- `GEMINI.md`: Contexto técnico para desarrollo asistido por IA.
+## Estructura del Proyecto
+```
+leave-mgmt-tgs/
+├── main.py                          # Punto de entrada, auth gate y routing
+├── app/
+│   ├── __init__.py
+│   ├── auth.py                      # Google OAuth y validacion de dominio
+│   ├── config.py                    # Carga de secretos y constantes
+│   ├── constants.py                 # Labels en espanol y textos informativos
+│   ├── database.py                  # Cliente Supabase y data access layer
+│   ├── notifications.py             # Servicio SMTP de notificaciones
+│   ├── pages/
+│   │   ├── __init__.py
+│   │   ├── dashboard.py             # Historial y metricas del usuario
+│   │   ├── submit_request.py        # Formulario de nueva solicitud
+│   │   ├── admin_panel.py           # Aprobacion/rechazo de pendientes
+│   │   ├── admin_reports.py         # Reportes con filtros dinamicos
+│   │   ├── admin_users.py           # Gestion de roles de usuario
+│   │   └── admin_feriados.py        # Feriados internos y periodos bloqueados
+│   └── services/
+│       ├── __init__.py
+│       └── leave_rules.py           # Motor de reglas de negocio (sin Streamlit)
+└── sql/
+    ├── reset.sql                     # Schema completo
+    ├── migration_v2.sql              # material_entregado + periodos_bloqueados
+    ├── migration_add_admin_read_only.sql
+    └── migration_rpc_insert_with_limit.sql  # RPC para limite atomico
+```
+
+## Roles de Usuario
+| Rol | Permisos |
+|-----|----------|
+| **user** | Solicitar permisos, ver historial y cupo propio |
+| **admin** | Aprobar/rechazar, gestionar usuarios, feriados, periodos bloqueados, reportes |
+| **admin_read_only** | Ver todo pero sin aprobar/rechazar/modificar |

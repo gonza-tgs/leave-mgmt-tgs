@@ -473,23 +473,18 @@ dependencies = [
 
 ---
 
-## 7. Resumen de Fases
+## 7. Nota: Estado Actual
 
-| Fase | Enfoque | Entregable clave |
-|---|---|---|
-| 1 | Fundación | Config, cliente DB, DDL aplicado, app ejecuta |
-| 2 | Autenticación | Login Google, validación dominio, sesión |
-| 3 | Reglas de Negocio | Motor auto-aprobación `leave_rules.py` |
-| 4 | Páginas Usuario | Formulario solicitud + historial personal |
-| 5 | Panel Admin | Gestión, reportes, administración usuarios |
-| 6 | Notificaciones | Emails SMTP en español |
-| 7 | Hardening | Null safety, caché, errores, tema visual |
-ración usuarios |
-| 6 | Notificaciones | Emails SMTP en español |
-| 7 | Hardening | Null safety, caché, errores, tema visual |
-s, tema visual |
-l |
-| 7 | Hardening | Null safety, caché, errores, tema visual |
-ración usuarios |
-| 6 | Notificaciones | Emails SMTP en español |
-| 7 | Hardening | Null safety, caché, errores, tema visual |
+El proyecto ha evolucionado respecto al plan original. Cambios clave:
+
+- **Sin auto-aprobacion:** Todos los permisos (incluyendo administrativos) requieren aprobacion manual. No existe estado `aprobado_auto` en uso.
+- **Nuevo rol:** `admin_read_only` — puede ver todo pero no modificar.
+- **Nueva tabla:** `periodos_bloqueados` — rangos de fechas donde no se permiten permisos.
+- **Nuevo campo:** `material_entregado` en `solicitudes`.
+- **Nuevo RPC:** `insert_solicitud_with_limit` — insercion atomica con chequeo de limite institucional.
+- **Migrations en `sql/`:** `reset.sql`, `migration_v2.sql`, `migration_add_admin_read_only.sql`, `migration_rpc_insert_with_limit.sql`
+- **Sin vistas:** Se usa `SUPABASE_SERVICE_KEY` que bypasea RLS en lugar de vistas separadas.
+- **Sin `.env`:** Se usa `.streamlit/secrets.toml` (estandar Streamlit).
+- **Sin `python-dotenv`:** No necesario con `st.secrets`.
+
+Para el estado actualizado completo, consultar `AGENTS.md`, `README.md` y `docs/Especificaciones Leave Management TGS.md`.

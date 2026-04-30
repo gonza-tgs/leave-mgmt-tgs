@@ -1,101 +1,104 @@
 # Manual de Usuario: Administrador del Sistema de Permisos (Colegio TGS)
 
-Este documento ha sido diseñado para la Dirección y la Gestión Administrativa del Colegio TGS. Su objetivo es explicar el funcionamiento, las reglas y el uso de la aplicación de gestión de permisos.
+Este documento ha sido disenado para la Direccion y la Gestion Administrativa del Colegio TGS. Su objetivo es explicar el funcionamiento, las reglas y el uso de la aplicacion de gestion de permisos.
 
 ---
 
-## 1. Introducción y Propósito
+## 1. Introduccion y Proposito
 
-La aplicación de **Gestión de Permisos TGS** es una herramienta digital diseñada para centralizar, automatizar y transparentar el proceso de solicitud de permisos y licencias del personal. 
+La aplicacion de **Gestion de Permisos TGS** es una herramienta digital disenada para centralizar, automatizar y transparentar el proceso de solicitud de permisos y licencias del personal.
 
 ### Roles en el Sistema
-1.  **Administradora (Usted):** Encargada de la toma de decisiones finales, aprobación de casos excepcionales y supervisión general de la asistencia.
-2.  **Administradora Solo Lectura:** Puede revisar solicitudes y reportes, pero no puede aprobar ni rechazar. Útil para quienes necesitan supervisar sin tomar decisiones.
-3.  **Soporte Técnico (Informática):** Encargado de mantener la plataforma activa, gestionar usuarios y resolver problemas técnicos.
-4.  **Usuario (Personal del Colegio):** Profesores y asistentes de la educación que solicitan permisos a través de su cuenta institucional.
+1.  **Administradora (Usted):** Encargada de la toma de decisiones finales, aprobacion de todos los permisos y supervision general.
+2.  **Administradora Solo Lectura:** Puede revisar solicitudes y reportes, pero no puede aprobar ni rechazar. Util para quienes necesitan supervisar sin tomar decisiones.
+3.  **Soporte Tecnico (Informatica):** Encargado de mantener la plataforma activa, gestionar usuarios y resolver problemas tecnicos.
+4.  **Usuario (Personal del Colegio):** Profesores y asistentes de la educacion que solicitan permisos a traves de su cuenta institucional.
 
 ---
 
 ## 2. Acceso y Disponibilidad
 
-La aplicación se encuentra alojada en la nube, lo que permite acceder desde cualquier lugar con conexión a internet.
+La aplicacion se encuentra alojada en la nube, lo que permite acceder desde cualquier lugar con conexion a internet.
 
 *   **URL de Acceso:** [https://gestion-permisos-tgs.streamlit.app](https://gestion-permisos-tgs.streamlit.app)
-*   **Plataforma:** El sistema utiliza tecnología de **Streamlit Cloud** para la interfaz, **Supabase** para el almacenamiento seguro de datos y **Google Cloud Platform (GCP)** para la validación de identidad institucional.
+*   **Plataforma:** El sistema utiliza tecnologia de **Streamlit Cloud** para la interfaz, **Supabase** para el almacenamiento seguro de datos y **Google Cloud Platform (GCP)** para la validacion de identidad institucional.
 
 ### Acceso Seguro
-El acceso está restringido exclusivamente a correos con el dominio `@colegiotgs.cl`. El sistema utiliza la cuenta de Google institucional para validar la identidad del usuario de forma segura, eliminando la necesidad de recordar contraseñas adicionales.
+El acceso esta restringido exclusivamente a correos con el dominio `@colegiotgs.cl`. El sistema utiliza la cuenta de Google institucional para validar la identidad del usuario de forma segura, eliminando la necesidad de recordar contrasenas adicionales.
 
 ---
 
-## 3. Conceptos Básicos y Funcionamiento
+## 3. Conceptos Basicos y Funcionamiento
 
-La aplicación no requiere instalación; funciona directamente en el navegador web (Chrome, Edge, Safari). 
+La aplicacion no requiere instalacion; funciona directamente en el navegador web (Chrome, Edge, Safari).
 
 ### Estructura de Datos
-Toda la información (quién pidió permiso, cuándo y por qué) se almacena en una base de datos centralizada y segura. Esto permite generar reportes históricos y asegurar que las reglas se apliquen de forma justa para todos.
+Toda la informacion (quien pidio permiso, cuando y por que) se almacena en una base de datos centralizada y segura. Esto permite generar reportes historicos y asegurar que las reglas se apliquen de forma justa para todos.
 
 ---
 
-## 4. Normas de Gestión de Permisos (Reglas de Negocio)
+## 4. Normas de Gestion de Permisos (Reglas de Negocio)
 
-El sistema aplica automáticamente las políticas del colegio para los **Permisos Administrativos**.
+### Permisos Administrativos (3 dias al ano)
+El sistema controla un cupo de **3 dias habiles** por ano calendario para cada funcionario. Las solicitudes pueden ser por jornada completa (1.0 dia) o media jornada (0.5 dia). **Todos los permisos administrativos requieren aprobacion manual de la Direccion.**
 
-### Permisos Administrativos (3 días al año)
-El sistema controla un cupo de **3 días hábiles** por año calendario para cada funcionario. Las solicitudes pueden ser por jornada completa (1.0 día) o media jornada (0.5 día).
+#### Reglas de Validacion Automatica:
+Al momento de enviar la solicitud, el sistema valida:
 
-#### Restricciones para Aprobación Automática:
-Para que un permiso se apruebe de forma inmediata (sin intervención de Dirección), debe cumplir:
+*   **Anticipacion:** La solicitud debe hacerse con al menos **14 dias** de anticipacion. Solicitudes con menos tiempo son rechazadas automaticamente.
+*   **Dias Prohibidos:** No se permiten permisos administrativos los lunes, viernes, visperas de feriado o el dia posterior a un feriado. Si se intenta, el sistema rechaza automaticamente.
+*   **Dias Bloqueados:** No se permiten permisos en fines de semana, feriados nacionales, dias no laborables internos, ni dentro de periodos bloqueados.
+*   **Cupo Anual:** Si el funcionario ya uso sus 3 dias, la solicitud es rechazada.
 
-*   **Días Prohibidos:** No puede ser lunes, viernes, víspera de feriado o el día posterior a un feriado.
-*   **Consecutividad:** No se pueden solicitar dos permisos administrativos en días seguidos.
-*   **Límite Institucional:** El sistema permite un máximo de **2 personas** con permiso administrativo el mismo día en todo el colegio para no afectar la operación.
+**Solicitudes que pasan las validaciones:** Quedan en estado **"Pendiente"** para su revision. El sistema le indicara si la solicitud fue derivada por alguna razon especial:
 
-**¿Qué pasa si no cumple las reglas?**
-Depende de la infracción:
-
-*   **Rechazo automático:** Si el día solicitado es un día prohibido (lunes, viernes, víspera o posterior a feriado) o si el funcionario ya agotó su cupo anual de 3 días, la solicitud de permiso administrativo queda **rechazada automáticamente**. El sistema notifica al usuario con el motivo. Si el funcionario considera que su situación es excepcional, puede volver a solicitar el mismo día eligiendo un **Permiso Con Goce de Sueldo** o **Sin Goce de Sueldo**, el cual siempre quedará en estado **"Pendiente"** para su evaluación.
-
-*   **Derivación a revisión (Pendiente):** Si el funcionario solicita días consecutivos o si ya hay 2 personas con permiso el mismo día, la solicitud administrativa **no se rechaza**, sino que queda en estado **"Pendiente"** para que usted evalúe la excepcionalidad del caso.
+*   **Dias consecutivos:** Si el funcionario solicita un dia adyacente a otro permiso ya aprobado.
+*   **Limite institucional:** Si ya hay 2 o mas permisos administrativos aprobados para esa misma fecha en todo el colegio.
 
 ### Otros Permisos (Con o Sin Goce de Sueldo)
-Estos permisos siempre requieren su revisión manual. El sistema le permitirá indicar si el permiso es remunerado o no al momento de aprobarlo.
+Estos permisos siempre requieren su revision manual. El sistema le permitira indicar si el permiso es remunerado o no al momento de aprobarlo.
 
 ---
 
-## 5. Guía de Uso de los Paneles Administrativos
+## 5. Guia de Uso de los Paneles Administrativos
 
-Usted dispone de cuatro herramientas principales en el menú lateral:
+Usted dispone de cuatro herramientas principales en el menu lateral:
 
-### A. Gestión de Solicitudes (Admin Panel)
-Es su centro de trabajo diario. Aquí verá una lista de todas las peticiones que requieren su decisión.
-*   **Revisión:** Al expandir una solicitud, verá el motivo del usuario y, en caso de ser un permiso administrativo, el sistema le indicará por qué fue derivado a revisión (ej. "Es día lunes").
-*   **Decisión:** Puede **Aprobar** o **Rechazar**. En ambos casos, puede escribir una nota aclaratoria que le llegará al funcionario.
-*   **Notificación:** Al presionar el botón, el sistema envía automáticamente un correo electrónico al solicitante con su decisión.
+### A. Gestion de Solicitudes (Admin Panel)
+Es su centro de trabajo diario. Aqui vera una lista de todas las peticiones que requieren su decision.
+*   **Revisar:** Al expandir una solicitud, vera el nombre, email, area, tipo de permiso, fecha, jornada y motivo del usuario.
+*   **Sistema de Derivacion:** Si aparece un aviso naranja con "Derivacion Automatica", el sistema le explica por que esa solicitud requiere su atencion especial (ej. "limite institucional alcanzado", "dias consecutivos").
+*   **Material de Reemplazo:** Para permisos administrativos, encontrara un toggle "Material de reemplazo entregado". Marque esta casilla si el docente entrego el material correspondiente al dia del permiso.
+*   **Procesar con Pago:** Para permisos Con Goce y Sin Goce de Sueldo, puede marcar si el permiso se procesa como remunerado. Este campo queda registrado internamente y no es visible para el usuario.
+*   **Nota Administrativa:** Puede escribir una nota opcional que sera visible tanto en el sistema como en el correo de notificacion al usuario.
+*   **Decision:** Presione **Aprobar** o **Rechazar**. El sistema envia automaticamente un correo electronico al solicitante con su decision.
 
-### B. Gestión de Feriados Internos (Admin Feriados)
-Permite bloquear fechas específicas para todo el colegio (ej. Aniversario, jornadas de planificación, cierres administrativos).
-*   Al registrar un día aquí, ningún funcionario podrá solicitar permisos automáticos para esa fecha.
+### B. Gestion de Dias No Laborables (Admin Feriados)
+Permite gestionar dos tipos de bloqueos:
 
-### C. Gestión de Usuarios y Roles (Admin Users)
-Permite ver quiénes están registrados en la plataforma.
-*   Aquí se asignan los perfiles (Usuario o Administrador).
-*   **Importante:** Solo el soporte técnico debería modificar estos roles a menos que se requiera un cambio de jerarquía.
+1.  **Dias No Laborables Internos:** Fechas especificas donde no se permite ningun permiso (ej. Aniversario del colegio, jornada de planificacion).
+2.  **Periodos Bloqueados:** Rangos de fechas donde no se autoriza ningun permiso (ej. del 15 al 30 de diciembre, vacaciones de invierno).
 
-### D. Reportes y Estadísticas (Admin Reports)
-Permite visualizar la "fotografía" del colegio en cuanto a ausencias.
-*   Filtros por mes, por área o por tipo de permiso.
-*   Botón para descargar la información a Excel para procesos de remuneraciones o registros internos.
+### C. Gestion de Usuarios y Roles (Admin Users)
+Permite ver quienes estan registrados en la plataforma y asignar roles.
+*   Roles disponibles: **Usuario**, **Administrador**, **Administrador Solo Lectura**.
+*   **Importante:** El sistema no permite quitar el rol de administrador al ultimo administrador del sistema para evitar quedarse sin acceso.
+
+### D. Reportes y Estadisticas (Admin Reports)
+Permite visualizar la "fotografia" del colegio en cuanto a ausencias.
+*   Filtros por usuario, por ano y por estado.
+*   Opcion de agrupar por usuario y ordenar por fecha (ascendente/descendente).
+*   Boton para descargar la informacion a CSV (compatible con Excel).
 
 ---
 
 ## 6. Requisitos y Recomendaciones
 
 *   **Navegador:** Se recomienda el uso de Google Chrome actualizado.
-*   **Soporte:** Ante cualquier duda sobre el funcionamiento o si un usuario no puede ingresar, contacte al soporte técnico para verificar que el correo institucional esté correctamente configurado.
-*   **Privacidad:** La información de los motivos de los permisos es sensible. Se recomienda acceder a los paneles administrativos solo desde equipos de uso personal o de oficina protegidos.
+*   **Soporte:** Ante cualquier duda sobre el funcionamiento o si un usuario no puede ingresar, contacte al soporte tecnico para verificar que el correo institucional este correctamente configurado.
+*   **Privacidad:** La informacion de los motivos de los permisos es sensible. Se recomienda acceder a los paneles administrativos solo desde equipos de uso personal o de oficina protegidos.
 
 ---
 
-**Colegio TGS**  
-*Sistema de Gestión de Permisos - Versión 1.0*
+**Colegio TGS**
+*Sistema de Gestion de Permisos - Version 1.0*

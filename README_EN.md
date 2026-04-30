@@ -1,22 +1,24 @@
 # Quiero mi Permiso! — Colegio TGS
 
-Web system named **"Quiero mi Permiso!"** for the automated and manual management of employee leave requests for Colegio TGS, developed with **Streamlit** and **Supabase**.
+Web system named **"Quiero mi Permiso!"** for employee leave management at Colegio TGS, developed with **Streamlit** and **Supabase**.
 
-## 🚀 Features
+## Features
 - **Institutional Authentication:** Google OAuth login restricted to the `@colegiotgs.cl` domain.
-- **Rules Engine:** Automated approval based on annual quotas and calendar restrictions (national holidays, adjacent days, etc.).
-- **Non-Working Days Blocking:** Absolute restriction for weekends, national holidays, and internal holidays.
-- **Admin Panel:** Management of requests, dynamic reports, role administration (including **Read-Only Administrator**), and internal holiday management.
-- **Transparency:** Detailed visualization of the reason for manual review referral directly in the admin panel.
+- **Manual Workflow:** All requests require manual admin approval (no auto-approval).
+- **Rules Engine:** Python validation of annual quotas, calendar restrictions (Mondays/Fridays, national holidays, eve/after holidays), consecutive days, and institutional limit of 2 administrative leaves per day.
+- **Atomic Limit:** Postgres RPC function (`insert_solicitud_with_limit`) re-checks the institutional limit at insert time to prevent race conditions.
+- **Day Blocking:** Absolute restriction for weekends, national holidays, internal holidays, and admin-defined blocked date ranges.
+- **Admin Panel:** Request management, dynamic reports, role administration (including **Read-Only Admin**), internal holidays, and blocked periods.
+- **Replacement Material:** Toggle to mark whether the teacher delivered material for the leave day.
 - **Notifications:** Automated approval/rejection emails via SMTP.
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Frontend/Backend:** [Streamlit](https://streamlit.io/)
 - **Database:** [Supabase](https://supabase.com/) (PostgreSQL)
 - **Dependency Management:** [uv](https://github.com/astral-sh/uv)
 - **Calendar:** `holidays` (Chile)
 
-## 📋 Local Setup
+## Local Setup
 
 1. **Install dependencies:**
    ```bash
@@ -24,7 +26,7 @@ Web system named **"Quiero mi Permiso!"** for the automated and manual managemen
    ```
 
 2. **Configure Secrets:**
-   Create a `.streamlit/secrets.toml` file in the project root with the following keys:
+   Create a `.streamlit/secrets.toml` file in the project root:
    ```toml
    SUPABASE_URL = "https://your-project.supabase.co"
    SUPABASE_KEY = "sb_publishable"
@@ -38,45 +40,72 @@ Web system named **"Quiero mi Permiso!"** for the automated and manual managemen
    ```
 
 3. **Database Setup:**
-   Run the SQL script included in `Plan_Implementacion_Leave_MGMT_App_TGS.md` in the Supabase SQL Editor to create tables, enums, and Row Level Security (RLS) policies.
+   Run the SQL scripts in this order in the Supabase SQL Editor:
+   - `sql/reset.sql` — Full schema (tables, enums, triggers, RLS, indexes)
+   - `sql/migration_v2.sql` — `material_entregado` column + `periodos_bloqueados` table
+   - `sql/migration_add_admin_read_only.sql` — `admin_read_only` role enum
+   - `sql/migration_rpc_insert_with_limit.sql` — RPC for atomic institutional limit
 
 4. **Run the App:**
    ```bash
    uv run streamlit run main.py
    ```
 
-## 🚀 Deployment and Service Configuration
-
-To make the application fully functional, you need to configure the following external services:
+## Deployment and Service Configuration
 
 ### 1. Database (Supabase)
 1. **Project:** Create a project on [Supabase](https://supabase.com/).
-2. **Tables and RLS:** Execute the SQL script provided in the implementation plan.
-3. **Google Auth:** Enable the Google provider in `Authentication > Providers`. You will need the Client ID and Secret from GCP.
+2. **Tables and RLS:** Run all SQL scripts from the `sql/` directory in order.
+3. **Google Auth:** Enable the Google provider in `Authentication > Providers`.
 
 ### 2. Google Authentication (GCP)
-1. **Project:** Create a project in the [Google Cloud Console](https://console.cloud.google.com/).
-2. **OAuth Consent Screen:** Set it to **Internal** mode to restrict access exclusively to the `@colegiotgs.cl` domain.
+1. **Project:** Create a project in [Google Cloud Console](https://console.cloud.google.com/).
+2. **OAuth Consent Screen:** Set to **Internal** mode to restrict access to `@colegiotgs.cl`.
 3. **Credentials:** Create an "OAuth 2.0 Client ID" (Web Application).
-4. **Redirection:** Add the callback URL provided by Supabase in its Google configuration panel.
+4. **Redirection:** Add the callback URL provided by Supabase.
 
 ### 3. Notifications (SMTP)
 1. **Account:** Create a dedicated email account (e.g., `notifications@colegiotgs.cl`).
 2. **Security:** Enable "2-Step Verification" on the Google account.
-3. **App Password:** Generate an **App password** specifically for the mail service. This key should be used in the Secrets, not the account's personal password.
+3. **App Password:** Generate an **App password** for the mail service.
 
 ### 4. Hosting (Streamlit Cloud)
 1. Push the repository to GitHub.
 2. Connect your account to [Streamlit Cloud](https://share.streamlit.io/).
-3. **Secrets:** Configure the secrets in the Streamlit dashboard by pasting the content of your `.streamlit/secrets.toml`.
+3. **Secrets:** Paste your `.streamlit/secrets.toml` content into the Streamlit dashboard.
 
-## 📂 Project Structure
-- `main.py`: Entry point and routing.
-- `app/auth.py`: Authentication and session logic.
-- `app/database.py`: Supabase client and queries.
-- `app/services/leave_rules.py`: Business rules engine.
-- `app/pages/`: UI pages (Dashboard, Request, Admin Panel, Reports, Users, **Holidays**).
-- `app/constants.py`: Enum mapping and Spanish labels.
-- `GEMINI.md`: Technical context for AI-assisted development.
-s.py`: Enum mapping and Spanish labels.
-- `GEMINI.md`: Technical context for AI-assisted development.
+## Project Structure
+```
+leave-mgmt-tgs/
+├── main.py                          # Entry point, auth gate and routing
+├── app/
+│   ├── __init__.py
+│   ├── auth.py                      # Google OAuth and domain validation
+│   ├── config.py                    # Secrets loading and constants
+│   ├── constants.py                 # Spanish labels and info texts
+│   ├── database.py                  # Supabase client and data access layer
+│   ├── notifications.py             # SMTP notification service
+│   ├── pages/
+│   │   ├── __init__.py
+│   │   ├── dashboard.py             # User history and metrics
+│   │   ├── submit_request.py        # New request form
+│   │   ├── admin_panel.py           # Pending request approval/rejection
+│   │   ├── admin_reports.py         # Reports with dynamic filters
+│   │   ├── admin_users.py           # User role management
+│   │   └── admin_feriados.py        # Internal holidays and blocked periods
+│   └── services/
+│       ├── __init__.py
+│       └── leave_rules.py           # Business rules engine (no Streamlit)
+└── sql/
+    ├── reset.sql                     # Full schema
+    ├── migration_v2.sql              # material_entregado + periodos_bloqueados
+    ├── migration_add_admin_read_only.sql
+    └── migration_rpc_insert_with_limit.sql  # RPC for atomic institutional limit
+```
+
+## User Roles
+| Role | Permissions |
+|------|-------------|
+| **user** | Submit leave requests, view own history and quota |
+| **admin** | Approve/reject, manage users, holidays, blocked periods, reports |
+| **admin_read_only** | View everything but cannot approve/reject/modify |
