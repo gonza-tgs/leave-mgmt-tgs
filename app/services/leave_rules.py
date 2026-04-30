@@ -17,7 +17,7 @@ def get_chilean_holidays(year: int):
 
 
 def is_blocked_day(
-    check_date: date, feriados_internos: list = None
+    check_date: date, feriados_internos: list | None = None
 ) -> tuple[bool, str]:
     """
     Verifica si un día no es hábil para solicitar permisos:
@@ -90,7 +90,7 @@ def check_anticipation(fecha_inicio: date) -> tuple[bool, str]:
     return True, ""
 
 
-def is_in_blocked_period(check_date: date, periodos: list = None) -> tuple[bool, str]:
+def is_in_blocked_period(check_date: date, periodos: list | None = None) -> tuple[bool, str]:
     """
     Verifica si una fecha cae dentro de algún periodo bloqueado.
     Retorna (es_bloqueado, razon).

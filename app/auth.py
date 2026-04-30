@@ -63,6 +63,9 @@ def handle_auth_callback():
         st.rerun()
 
     except Exception as e:
+        # FIXED: #7 — log auth errors explicitly
+        import logging
+        logging.getLogger(__name__).error("Error en autenticación: %s", e, exc_info=True)
         st.error(f"Error al procesar la autenticación: {e}")
 
 def is_authenticated() -> bool:

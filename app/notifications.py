@@ -17,14 +17,16 @@ def _send_email(to: str | list, subject: str, body: str) -> bool:
         msg['To'] = ", ".join(recipients)
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(SMTP_FROM, recipients, msg.as_string())
-        server.quit()
+        # FIXED: #2 — use context manager to guarantee quit() on failure
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_FROM, recipients, msg.as_string())
         return True
     except Exception as e:
-        print(f"Error al enviar correo: {e}")
+        # FIXED: #5 — log via streamlit instead of bare print()
+        import streamlit as st
+        st.warning(f"No se pudo enviar el correo: {e}")
         return False
 
 

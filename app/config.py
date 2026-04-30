@@ -8,7 +8,11 @@ SUPABASE_SERVICE_KEY = st.secrets.get("SUPABASE_SERVICE_KEY")
 
 # Configuración SMTP
 SMTP_HOST = st.secrets.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(st.secrets.get("SMTP_PORT", 587))
+# FIXED: #1 — guard against empty string in secrets causing int("") ValueError
+try:
+    SMTP_PORT = int(st.secrets.get("SMTP_PORT", 587))
+except (ValueError, TypeError):
+    SMTP_PORT = 587
 SMTP_USER = st.secrets.get("SMTP_USER")
 SMTP_PASSWORD = st.secrets.get("SMTP_PASSWORD")
 SMTP_FROM = st.secrets.get("SMTP_FROM")

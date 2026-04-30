@@ -32,7 +32,8 @@ def render_admin_panel(user):
     st.write(f"Hay {len(pendientes)} solicitudes esperando tu revisión.")
 
     for sol in pendientes:
-        profile = sol.get("profiles", {})
+        # FIXED: #3 — guard against profiles being None from Supabase join
+        profile = sol.get("profiles") or {}
         tipo_label = TIPO_PERMISO_LABELS.get(sol['tipo_permiso'], sol['tipo_permiso'])
         with st.expander(f"📝 {profile.get('full_name')} - {sol['fecha_inicio']} ({tipo_label})"):
             col1, col2 = st.columns(2)

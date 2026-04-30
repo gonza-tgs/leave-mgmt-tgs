@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import date, timedelta
-from app.database import insert_solicitud, get_user_solicitudes, get_supabase_admin, get_admin_emails, get_feriados_internos, get_periodos_bloqueados
+from app.database import insert_solicitud, insert_solicitud_with_limit, get_user_solicitudes, get_supabase_admin, get_admin_emails, get_feriados_internos, get_periodos_bloqueados
 from app.services.leave_rules import evaluate_auto_approval, is_blocked_day, check_anticipation, is_in_blocked_period
 from app.constants import (
     TIPO_PERMISO_LABELS, JORNADA_LABELS,
@@ -118,7 +118,16 @@ def render_submit_request(user):
                         "admin_nota": admin_nota
                     }
 
-                    insert_solicitud(solicitud_data)
+                    # FIXED: #4 — use RPC for atomic institutional limit re-check
+                    if tipo_permiso == "administrativo" and estado == "pendiente":
+                        result = insert_solicitud_with_limit(solicitud_data)
+                        # RPC may have appended a limit note — pick it up for display
+                        if result and result[0].get("admin_nota"):
+                            rpc_nota = result[0]["admin_nota"]
+                            if "Límite institucional" in rpc_nota and "Límite institucional" not in admin_nota:
+                                razon += " | Se ha alcanzado el límite de 2 permisos institucionales para este día."
+                    else:
+                        insert_solicitud(solicitud_data)
 
                     if estado == "pendiente":
                         admin_emails = get_admin_emails()
@@ -136,4 +145,6 @@ def render_submit_request(user):
                             st.info(SUGERENCIA_RECHAZO_GENERAL)
 
                 except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).error("Error al procesar solicitud: %s", e, exc_info=True)
                     st.error(f"Ocurrió un error al procesar tu solicitud: {str(e)}")

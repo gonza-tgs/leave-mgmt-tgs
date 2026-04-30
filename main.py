@@ -39,9 +39,8 @@ from app.pages.admin_reports import render_admin_reports
 from app.pages.admin_users import render_admin_users
 from app.pages.admin_feriados import render_admin_feriados
 
-# ... (código previo)
 
-# Aquí iría el routing de las páginas
+# Routing de páginas
 if page == "🏠 Mi Historial":
     render_dashboard(user)
 elif page == "📝 Solicitar Permiso":

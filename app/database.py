@@ -28,6 +28,8 @@ def get_user_profile(user_id: str):
         result = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
         return result.data
     except Exception:
+        # FIXED: #6 — log profile fetch failures instead of silently returning None
+        st.warning(f"No se pudo obtener el perfil del usuario {user_id}.")
         return None
 
 def create_user_profile(user_id: str, email: str, full_name: str) -> dict:
@@ -67,6 +69,23 @@ def insert_solicitud(solicitud_data: dict):
     """Inserta una nueva solicitud de permiso."""
     supabase = get_supabase_admin()
     result = supabase.table("solicitudes").insert(solicitud_data).execute()
+    get_user_solicitudes.clear()
+    return result.data
+
+# FIXED: #4 — atomic insert with institutional limit re-check via RPC
+def insert_solicitud_with_limit(solicitud_data: dict):
+    """Inserta una solicitud con chequeo atómico de límite institucional vía RPC."""
+    supabase = get_supabase_admin()
+    result = supabase.rpc("insert_solicitud_with_limit", {
+        "p_user_id":      solicitud_data["user_id"],
+        "p_tipo_permiso": solicitud_data["tipo_permiso"],
+        "p_fecha_inicio": solicitud_data["fecha_inicio"],
+        "p_jornada":      solicitud_data["jornada"],
+        "p_estado":       solicitud_data["estado"],
+        "p_es_pagado":    solicitud_data["es_pagado"],
+        "p_motivo":       solicitud_data.get("motivo") or "",
+        "p_admin_nota":   solicitud_data.get("admin_nota") or "",
+    }).execute()
     get_user_solicitudes.clear()
     return result.data
 
