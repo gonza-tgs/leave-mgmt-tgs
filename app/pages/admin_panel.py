@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from app.database import get_supabase_admin
-from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
+from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS, ESTADO_LABELS
 from app.notifications import send_approval_email, send_rejection_email
 
 
@@ -15,7 +15,6 @@ def render_admin_panel(user):
 
     supabase = get_supabase_admin()
 
-    # Query de solicitudes pendientes con información del perfil
     result = (
         supabase.table("solicitudes")
         .select("*, profiles(full_name, email, area)")
@@ -34,7 +33,8 @@ def render_admin_panel(user):
 
     for sol in pendientes:
         profile = sol.get("profiles", {})
-        with st.expander(f"📝 {profile.get('full_name')} - {sol['fecha_inicio']}"):
+        tipo_label = TIPO_PERMISO_LABELS.get(sol['tipo_permiso'], sol['tipo_permiso'])
+        with st.expander(f"📝 {profile.get('full_name')} - {sol['fecha_inicio']} ({tipo_label})"):
             col1, col2 = st.columns(2)
 
             with col1:
@@ -47,7 +47,6 @@ def render_admin_panel(user):
                 st.write(f"**Jornada:** {JORNADA_LABELS.get(sol['jornada'])}")
                 st.write(f"**Motivo Usuario:** {sol.get('motivo', 'Sin motivo')}")
 
-            # Mostrar razón de derivación si existe
             if sol.get("admin_nota") and sol["admin_nota"].startswith("SISTEMA:"):
                 st.warning(
                     f"⚠️ **Derivación Automática:** {sol['admin_nota'].replace('SISTEMA: ', '')}"
@@ -55,15 +54,26 @@ def render_admin_panel(user):
 
             st.divider()
 
-            # Opción de Pago (Solo para Con Goce / Sin Goce)
-            es_pagado = sol["es_pagado"]
-            if sol["tipo_permiso"] in ["con_goce", "sin_goce"]:
-                es_pagado = st.toggle(
-                    "Procesar con Pago (Remunerado)",
-                    value=sol["es_pagado"],
-                    key=f"pay_{sol['id']}",
+            col_mat, col_pago = st.columns(2)
+
+            with col_mat:
+                material_entregado = st.toggle(
+                    "Material de reemplazo entregado",
+                    value=sol.get("material_entregado", False),
+                    key=f"mat_{sol['id']}",
                     disabled=is_read_only,
+                    help="Marca si el docente entregó el material de reemplazo para el día del permiso."
                 )
+
+            with col_pago:
+                es_pagado = sol["es_pagado"]
+                if sol["tipo_permiso"] in ["con_goce", "sin_goce"]:
+                    es_pagado = st.toggle(
+                        "Procesar con Pago (Remunerado)",
+                        value=sol["es_pagado"],
+                        key=f"pay_{sol['id']}",
+                        disabled=is_read_only,
+                    )
 
             admin_nota_input = st.text_input(
                 "Nota administrativa (opcional)",
@@ -83,6 +93,7 @@ def render_admin_panel(user):
                 update_data = {
                     "estado": "aprobado_manual",
                     "es_pagado": es_pagado,
+                    "material_entregado": material_entregado,
                     "admin_nota": admin_nota_input,
                 }
                 supabase.table("solicitudes").update(update_data).eq(
@@ -98,7 +109,11 @@ def render_admin_panel(user):
                 type="secondary",
                 disabled=is_read_only,
             ):
-                update_data = {"estado": "rechazado", "admin_nota": admin_nota_input}
+                update_data = {
+                    "estado": "rechazado",
+                    "material_entregado": material_entregado,
+                    "admin_nota": admin_nota_input,
+                }
                 supabase.table("solicitudes").update(update_data).eq(
                     "id", sol["id"]
                 ).execute()

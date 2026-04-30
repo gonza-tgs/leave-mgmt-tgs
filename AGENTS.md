@@ -1,7 +1,7 @@
 # GEMINI.md - Leave Management App (Colegio TGS)
 
 ## Project Overview 🛩️
-The **Leave Management App** is a web-based platform designed for **Colegio TGS** to automate and manage employee leave requests. It handles different types of leave (Administrative, Paid, and Unpaid) with automated business rules for administrative days and a manual approval workflow for others.
+The **Leave Management App** is a web-based platform designed for **Colegio TGS** to automate and manage employee leave requests. It handles different types of leave (Administrative, Paid, and Unpaid) with manual approval workflow for all types.
 
 ### Key Technologies
 - **Frontend/Backend:** [Streamlit](https://streamlit.io/)
@@ -17,8 +17,9 @@ The project follows a modular structure to separate concerns:
 - `app/auth.py`: Google OAuth integration and domain validation.
 - `app/database.py`: Centralized Supabase client and data access layer.
 - `app/notifications.py`: SMTP service for sending approval/rejection emails.
-- `app/services/leave_rules.py`: Pure Python business logic for automated leave approvals.
+- `app/services/leave_rules.py`: Pure Python business logic for leave validation rules.
 - `app/pages/`: UI components for different user roles (Dashboard, Request Form, Admin Panels).
+- `sql/migrations/`: Database migration scripts for schema evolution.
 
 ---
 
@@ -67,14 +68,23 @@ uv run streamlit run main.py
 - **Security:** Never expose `SUPABASE_SERVICE_KEY` or `es_pagado` / `admin_nota` fields to non-admin users.
 
 ### Database Schema (Supabase)
-- **Tables:** `profiles` (extends auth users), `solicitudes` (leave requests).
+- **Tables:** `profiles` (extends auth users), `solicitudes` (leave requests), `feriados_internos` (single-day holidays), `periodos_bloqueados` (date ranges with no permissions allowed).
 - **RLS:** Row Level Security must be strictly enforced (users can only read/write their own data; admins have full access).
 - **Triggers:** Automatic `updated_at` updates and profile creation on user signup.
+- **Migrations:** Run `sql/migration_v2.sql` for the latest schema additions (`material_entregado`, `periodos_bloqueados`).
 
 ---
 
-## Business Rules for Administrative Leave (Core Logic)
+## Business Rules (Core Logic)
+
+### Global Rules (apply to all leave types)
+- **Advance Notice:** Requests must be submitted at least 14 days before the leave date. Otherwise → auto-rejected.
+- **Blocked Days:** Weekends, national holidays, and admin-defined `feriados_internos` (single dates) are blocked.
+- **Blocked Periods:** Admin-defined date ranges in `periodos_bloqueados` block all leave requests during those periods.
+
+### Administrative Leave Rules
 - **Quota:** 3 days per year (Half-days count as 0.5).
-- **Prohibited Days:** Mondays, Fridays, eve of holidays, or day after a holiday.
-- **Constraints:** No consecutive days; maximum 2 institutional approvals per day.
-- **Flow:** If all rules pass -> `aprobado_auto`. Otherwise -> `pendiente` or `rechazado`.
+- **Prohibited Days:** Mondays, Fridays, eve of holidays, or day after a holiday → auto-rejected.
+- **Constraints:** No consecutive days → sent to `pendiente`; maximum 2 institutional approvals per day → sent to `pendiente`.
+- **Flow:** All administrative leave goes to `pendiente` (passes initial validations) or `rechazado` (fails any hard rule). An admin must manually approve → `aprobado_manual` or reject → `rechazado`.
+- **Material Replacement:** Before approving, the admin marks whether the teacher delivered replacement material (`material_entregado` toggle).

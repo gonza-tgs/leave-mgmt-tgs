@@ -16,6 +16,7 @@ SMTP_FROM = st.secrets.get("SMTP_FROM")
 # Constantes de Negocio
 ALLOWED_DOMAIN = "colegiotgs.cl"
 MAX_ADMIN_DAYS = 3.0
+MIN_ANTICIPATION_DAYS = 14
 
 # Validación básica (opcional para logs)
 if not SUPABASE_URL:

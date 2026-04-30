@@ -20,6 +20,7 @@ DROP FUNCTION IF EXISTS update_updated_at_column()     CASCADE;
 
 DROP TABLE IF EXISTS solicitudes        CASCADE;
 DROP TABLE IF EXISTS feriados_internos  CASCADE;
+DROP TABLE IF EXISTS periodos_bloqueados CASCADE;
 DROP TABLE IF EXISTS profiles           CASCADE;
 
 DROP TYPE IF EXISTS tipo_permiso_enum   CASCADE;
@@ -60,6 +61,7 @@ CREATE TABLE solicitudes (
     jornada         jornada_enum      NOT NULL DEFAULT 'completa',
     estado          estado_enum       NOT NULL DEFAULT 'pendiente',
     es_pagado       BOOLEAN           NOT NULL DEFAULT FALSE,
+    material_entregado BOOLEAN        NOT NULL DEFAULT FALSE,
     notificado      BOOLEAN           NOT NULL DEFAULT FALSE,
     motivo          TEXT,
     admin_nota      TEXT,
@@ -73,6 +75,16 @@ CREATE TABLE feriados_internos (
     descripcion TEXT,
     created_by  UUID        REFERENCES profiles(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE periodos_bloqueados (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    fecha_inicio    DATE        NOT NULL,
+    fecha_fin       DATE        NOT NULL,
+    descripcion     TEXT,
+    created_by      UUID        REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT check_fecha_rango CHECK (fecha_fin >= fecha_inicio)
 );
 
 
@@ -152,6 +164,7 @@ CREATE INDEX idx_solicitudes_user_id      ON solicitudes(user_id);
 CREATE INDEX idx_solicitudes_fecha_inicio ON solicitudes(fecha_inicio);
 CREATE INDEX idx_solicitudes_estado       ON solicitudes(estado);
 CREATE INDEX idx_solicitudes_user_fecha   ON solicitudes(user_id, fecha_inicio);
+CREATE INDEX idx_periodos_fechas          ON periodos_bloqueados(fecha_inicio, fecha_fin);
 
 
 -- ============================================================
@@ -217,6 +230,23 @@ CREATE POLICY all_users_read_feriados
 
 CREATE POLICY admins_manage_feriados
     ON feriados_internos FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM profiles p
+            WHERE p.id = auth.uid()
+            AND p.rol = 'admin'
+        )
+    );
+
+-- periodos_bloqueados
+ALTER TABLE periodos_bloqueados ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY all_users_read_periodos
+    ON periodos_bloqueados FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY admins_manage_periodos
+    ON periodos_bloqueados FOR ALL
     USING (
         EXISTS (
             SELECT 1 FROM profiles p

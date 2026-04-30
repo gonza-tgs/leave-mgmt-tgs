@@ -1,9 +1,9 @@
 import streamlit as st
 from datetime import date, timedelta
-from app.database import insert_solicitud, get_user_solicitudes, get_supabase_admin, get_admin_emails, get_feriados_internos
-from app.services.leave_rules import evaluate_auto_approval, is_blocked_day
+from app.database import insert_solicitud, get_user_solicitudes, get_supabase_admin, get_admin_emails, get_feriados_internos, get_periodos_bloqueados
+from app.services.leave_rules import evaluate_auto_approval, is_blocked_day, check_anticipation, is_in_blocked_period
 from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
-from app.notifications import send_new_request_email, send_approval_email, send_rejection_email, send_auto_approval_admin_email
+from app.notifications import send_new_request_email, send_rejection_email
 
 def render_submit_request(user):
     """Renderiza el formulario para nueva solicitud."""
@@ -49,27 +49,34 @@ def render_submit_request(user):
                 st.stop()
 
             feriados = get_feriados_internos()
+            periodos = get_periodos_bloqueados()
+
             bloqueado, razon_bloqueo = is_blocked_day(fecha_inicio, feriados)
             if bloqueado:
                 st.error(f"Fecha no válida: {razon_bloqueo}")
                 st.stop()
 
-            # Procesar solicitud
+            bloqueado_periodo, razon_periodo = is_in_blocked_period(fecha_inicio, periodos)
+            if bloqueado_periodo:
+                st.error(f"Fecha no válida: {razon_periodo}")
+                st.stop()
+
+            anticipacion_ok, razon_anticipacion = check_anticipation(fecha_inicio)
+            if not anticipacion_ok:
+                st.error(f"Fecha no válida: {razon_anticipacion}")
+                st.stop()
+
             with st.spinner("Procesando solicitud..."):
                 try:
-                    # Datos iniciales para evaluación
-                    # Nota: Para evaluar reglas institucionales, necesitaríamos todas las solicitudes.
-                    # En este paso, fetch de todas las solicitudes de la DB.
                     supabase_admin = get_supabase_admin()
                     all_solicitudes_raw = supabase_admin.table("solicitudes").select("*").execute()
                     all_solicitudes = all_solicitudes_raw.data
-                    
+
                     user_solicitudes = [s for s in all_solicitudes if s["user_id"] == user["id"]]
-                    
+
                     estado = "pendiente"
                     razon = "Solicitud enviada para revisión manual."
-                    
-                    # Si es administrativo, evaluar auto-aprobación
+
                     admin_nota = ""
                     if tipo_permiso == "administrativo":
                         estado, razon = evaluate_auto_approval(
@@ -77,12 +84,9 @@ def render_submit_request(user):
                         )
                         if estado == "pendiente":
                             admin_nota = f"SISTEMA: {razon}"
-                    
-                    # Preparar datos para insertar
-                    # Determinar es_pagado por defecto
-                    # administrativo/con_goce -> true; sin_goce -> false
+
                     es_pagado = tipo_permiso in ["administrativo", "con_goce"]
-                    
+
                     motivo = motivo_tipo if motivo_tipo != "Otro" else f"Otro: {motivo_detalle.strip()}"
 
                     solicitud_data = {
@@ -95,28 +99,19 @@ def render_submit_request(user):
                         "motivo": motivo,
                         "admin_nota": admin_nota
                     }
-                    
+
                     insert_solicitud(solicitud_data)
 
-                    # Notificaciones por correo
-                    if estado == "aprobado_auto":
-                        send_approval_email(solicitud_data, user)
-                        admin_emails = get_admin_emails()
-                        send_auto_approval_admin_email(solicitud_data, user, admin_emails)
-                    elif estado == "pendiente":
+                    if estado == "pendiente":
                         admin_emails = get_admin_emails()
                         send_new_request_email(solicitud_data, user, admin_emails)
                     elif estado == "rechazado":
                         send_rejection_email(solicitud_data, user, razon)
 
-                    # Mostrar resultado
-                    if estado == "aprobado_auto":
-                        st.success(f"✅ ¡Solicitud Aprobada Automáticamente!\n\n{razon}")
-                        st.balloons()
-                    elif estado == "pendiente":
+                    if estado == "pendiente":
                         st.warning(f"⏳ Solicitud Enviada para Revisión.\n\n{razon}")
                     elif estado == "rechazado":
                         st.error(f"❌ Solicitud Rechazada.\n\n{razon}")
-                        
+
                 except Exception as e:
                     st.error(f"Ocurrió un error al procesar tu solicitud: {str(e)}")

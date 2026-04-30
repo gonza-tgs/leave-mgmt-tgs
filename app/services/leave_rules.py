@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from datetime import datetime
 import holidays
+from app.config import MIN_ANTICIPATION_DAYS
 
 
 def _to_date(value) -> date:
@@ -25,20 +26,17 @@ def is_blocked_day(
     - Feriado interno definido por admin
     Retorna (bloqueado, razon).
     """
-    # 1. Fin de semana
     if check_date.weekday() >= 5:
         return (
             True,
             "No se pueden solicitar permisos en fin de semana (sábado o domingo).",
         )
 
-    # 2. Feriado nacional chileno
     cl_holidays = get_chilean_holidays(check_date.year)
     if check_date in cl_holidays:
         nombre = cl_holidays.get(check_date, "Feriado nacional")
         return True, f"La fecha seleccionada es feriado nacional: {nombre}."
 
-    # 3. Feriado interno
     if feriados_internos:
         for f in feriados_internos:
             if str(f["fecha"]) == str(check_date):
@@ -50,31 +48,62 @@ def is_blocked_day(
 
 def is_prohibited_day(check_date: date) -> tuple[bool, str]:
     """
-    Verifica si un día está prohibido para permisos administrativos automáticos.
+    Verifica si un día está prohibido para permisos administrativos.
     Retorna (es_prohibido, razon).
     """
-    # 1. Lunes (0) o Viernes (4)
     if check_date.weekday() == 0:
-        return True, "Los lunes son días prohibidos para permisos automáticos."
+        return True, "Los lunes son días prohibidos para permisos administrativos."
     if check_date.weekday() == 4:
-        return True, "Los viernes son días prohibidos para permisos automáticos."
+        return True, "Los viernes son días prohibidos para permisos administrativos."
 
-    # 2. Feriados y sus adyacencias
     cl_holidays = get_chilean_holidays(check_date.year)
 
     if check_date in cl_holidays:
         return True, "La fecha seleccionada es un día feriado."
 
-    # Víspera de feriado
     tomorrow = check_date + timedelta(days=1)
     if tomorrow in cl_holidays:
         return True, "No se permiten permisos en vísperas de feriado."
 
-    # Día posterior a feriado
     yesterday = check_date - timedelta(days=1)
     if yesterday in cl_holidays:
         return True, "No se permiten permisos el día posterior a un feriado."
 
+    return False, ""
+
+
+def check_anticipation(fecha_inicio: date) -> tuple[bool, str]:
+    """
+    Verifica que la solicitud se haga con al menos MIN_ANTICIPATION_DAYS de anticipación.
+    Retorna (valido, razon). True = pasa la validación.
+    """
+    fecha_inicio = _to_date(fecha_inicio)
+    today = date.today()
+    min_date = today + timedelta(days=MIN_ANTICIPATION_DAYS)
+    if fecha_inicio < min_date:
+        dias_restantes = (fecha_inicio - today).days
+        return (
+            False,
+            f"El permiso debe solicitarse con al menos {MIN_ANTICIPATION_DAYS} días de anticipación. "
+            f"Faltan {dias_restantes} día(s) para la fecha solicitada."
+        )
+    return True, ""
+
+
+def is_in_blocked_period(check_date: date, periodos: list = None) -> tuple[bool, str]:
+    """
+    Verifica si una fecha cae dentro de algún periodo bloqueado.
+    Retorna (es_bloqueado, razon).
+    """
+    if not periodos:
+        return False, ""
+    check_date = _to_date(check_date)
+    for p in periodos:
+        inicio = _to_date(p["fecha_inicio"])
+        fin = _to_date(p["fecha_fin"])
+        if inicio <= check_date <= fin:
+            desc = p.get("descripcion") or "Periodo bloqueado"
+            return True, f"La fecha solicitada está dentro de un periodo sin autorización de permisos: {desc}."
     return False, ""
 
 
@@ -86,16 +115,15 @@ def evaluate_auto_approval(
     all_solicitudes: list,
 ) -> tuple[str, str]:
     """
-    Evalúa si una solicitud de permiso administrativo califica para aprobación automática.
+    Evalúa las reglas de validación para permisos administrativos.
+    Ya no aprueba automáticamente: si pasa todas las reglas va a pendiente.
     Retorna (estado, razon).
     """
-    # 1. Validar cupo anual (3 días máximo)
-    # Jornada completa = 1.0, mañana/tarde = 0.5
     fecha_inicio = _to_date(fecha_inicio)
     current_year = fecha_inicio.year
+
     used_days = 0.0
     for sol in user_solicitudes:
-        # Solo contar aprobados del año actual y de tipo administrativo
         if (
             sol["tipo_permiso"] == "administrativo"
             and sol["estado"] in ["aprobado_auto", "aprobado_manual"]
@@ -110,22 +138,19 @@ def evaluate_auto_approval(
             f"Cupo anual excedido. Has usado {used_days} días de los 3 días administrativos permitidos.",
         )
 
-    # 2. Validar días prohibidos
     prohibited, reason = is_prohibited_day(fecha_inicio)
     if prohibited:
         return "rechazado", reason
 
-    # 3. Validar días consecutivos (No pueden ser días seguidos)
     for sol in user_solicitudes:
         if sol["estado"] in ["aprobado_auto", "aprobado_manual"]:
             diff = abs((_to_date(sol["fecha_inicio"]) - fecha_inicio).days)
             if diff == 1:
                 return (
                     "pendiente",
-                    "No se permiten permisos administrativos en días consecutivos. Requiere revisión por parte de la Dirección",
+                    "No se permiten permisos administrativos en días consecutivos. Requiere revisión por parte de la Dirección.",
                 )
 
-    # 4. Validar límite institucional (Máximo 2 por día en toda la institución)
     institutional_count = 0
     for sol in all_solicitudes:
         if _to_date(sol["fecha_inicio"]) == fecha_inicio and sol["estado"] in [
@@ -140,8 +165,7 @@ def evaluate_auto_approval(
             "Se ha alcanzado el límite de 2 permisos institucionales para este día. Requiere revisión por parte de la Dirección.",
         )
 
-    # 5. Todo OK -> Aprobación automática
     return (
-        "aprobado_auto",
-        "Solicitud aprobada automáticamente por cumplir todas las restricciones",
+        "pendiente",
+        "Solicitud enviada para revisión. Cumple todas las restricciones iniciales.",
     )

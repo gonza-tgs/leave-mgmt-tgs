@@ -95,3 +95,33 @@ def delete_feriado_interno(feriado_id: str):
     supabase = get_supabase_admin()
     supabase.table("feriados_internos").delete().eq("id", feriado_id).execute()
     get_feriados_internos.clear()
+
+
+# --- Periodos Bloqueados ---
+
+@st.cache_data(ttl=3600)
+def get_periodos_bloqueados() -> list:
+    """Retorna todos los periodos bloqueados (rangos de fechas)."""
+    supabase = get_supabase_admin()
+    result = supabase.table("periodos_bloqueados").select("*").order("fecha_inicio").execute()
+    return result.data or []
+
+
+def add_periodo_bloqueado(fecha_inicio: str, fecha_fin: str, descripcion: str, created_by: str):
+    """Agrega un periodo bloqueado (rango de fechas)."""
+    supabase = get_supabase_admin()
+    result = supabase.table("periodos_bloqueados").insert({
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+        "descripcion": descripcion,
+        "created_by": created_by
+    }).execute()
+    get_periodos_bloqueados.clear()
+    return result.data[0] if result.data else None
+
+
+def delete_periodo_bloqueado(periodo_id: str):
+    """Elimina un periodo bloqueado por ID."""
+    supabase = get_supabase_admin()
+    supabase.table("periodos_bloqueados").delete().eq("id", periodo_id).execute()
+    get_periodos_bloqueados.clear()

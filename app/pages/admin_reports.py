@@ -80,12 +80,16 @@ def render_admin_reports():
         "profiles.area": "Área",
         "motivo": "Motivo",
         "admin_nota": "Nota Admin",
-        "es_pagado": "Pagado"
+        "es_pagado": "Pagado",
+        "material_entregado": "Material Entregado"
     }, inplace=True)
     
     # Seleccionar columnas para visualización
-    display_cols = ["Funcionario", "Fecha Inicio", "Tipo", "Jornada", "Estado", "Motivo", "Área", "Pagado", "Nota Admin"]
+    display_cols = ["Funcionario", "Fecha Inicio", "Tipo", "Jornada", "Estado", "Motivo", "Área", "Pagado", "Material Entregado", "Nota Admin"]
     display_df = df[display_cols].fillna("-")
+
+    display_df["Pagado"] = display_df["Pagado"].replace({True: "Sí", False: "No"})
+    display_df["Material Entregado"] = display_df["Material Entregado"].replace({True: "Sí", False: "No"})
     
     # --- Resultados ---
     st.subheader(f"Resultados: {len(display_df)} registros")
