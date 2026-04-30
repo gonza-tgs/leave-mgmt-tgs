@@ -2,12 +2,27 @@ import streamlit as st
 from datetime import date, timedelta
 from app.database import insert_solicitud, get_user_solicitudes, get_supabase_admin, get_admin_emails, get_feriados_internos, get_periodos_bloqueados
 from app.services.leave_rules import evaluate_auto_approval, is_blocked_day, check_anticipation, is_in_blocked_period
-from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
+from app.constants import (
+    TIPO_PERMISO_LABELS, JORNADA_LABELS,
+    CONDICIONES_GENERALES, CONDICIONES_ADMINISTRATIVO,
+    CONDICIONES_CON_GOCE, CONDICIONES_SIN_GOCE,
+    SUGERENCIA_RECHAZO_ANTICIPACION, SUGERENCIA_RECHAZO_BLOQUEO,
+    SUGERENCIA_RECHAZO_ADMIN, SUGERENCIA_RECHAZO_GENERAL,
+)
 from app.notifications import send_new_request_email, send_rejection_email
 
 def render_submit_request(user):
     """Renderiza el formulario para nueva solicitud."""
     st.header("Nueva Solicitud de Permiso")
+
+    with st.expander("📋 Requisitos y condiciones para solicitar permiso", expanded=False):
+        st.markdown(CONDICIONES_GENERALES)
+        st.divider()
+        st.markdown(CONDICIONES_ADMINISTRATIVO)
+        st.divider()
+        st.markdown(CONDICIONES_CON_GOCE)
+        st.divider()
+        st.markdown(CONDICIONES_SIN_GOCE)
     
     with st.form("request_form"):
         # Selección de tipo de permiso
@@ -54,16 +69,19 @@ def render_submit_request(user):
             bloqueado, razon_bloqueo = is_blocked_day(fecha_inicio, feriados)
             if bloqueado:
                 st.error(f"Fecha no válida: {razon_bloqueo}")
+                st.info(SUGERENCIA_RECHAZO_BLOQUEO)
                 st.stop()
 
             bloqueado_periodo, razon_periodo = is_in_blocked_period(fecha_inicio, periodos)
             if bloqueado_periodo:
                 st.error(f"Fecha no válida: {razon_periodo}")
+                st.info(SUGERENCIA_RECHAZO_BLOQUEO)
                 st.stop()
 
             anticipacion_ok, razon_anticipacion = check_anticipation(fecha_inicio)
             if not anticipacion_ok:
                 st.error(f"Fecha no válida: {razon_anticipacion}")
+                st.info(SUGERENCIA_RECHAZO_ANTICIPACION)
                 st.stop()
 
             with st.spinner("Procesando solicitud..."):
@@ -112,6 +130,10 @@ def render_submit_request(user):
                         st.warning(f"⏳ Solicitud Enviada para Revisión.\n\n{razon}")
                     elif estado == "rechazado":
                         st.error(f"❌ Solicitud Rechazada.\n\n{razon}")
+                        if tipo_permiso == "administrativo":
+                            st.info(SUGERENCIA_RECHAZO_ADMIN)
+                        else:
+                            st.info(SUGERENCIA_RECHAZO_GENERAL)
 
                 except Exception as e:
                     st.error(f"Ocurrió un error al procesar tu solicitud: {str(e)}")
