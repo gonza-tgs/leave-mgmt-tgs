@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_user_solicitudes
 from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
 from app.notifications import send_approval_email, send_rejection_email
 
@@ -100,7 +100,9 @@ def render_admin_panel(user):
                 supabase.table("solicitudes").update(update_data).eq(
                     "id", sol["id"]
                 ).execute()
-                send_approval_email(sol, profile)
+                get_user_solicitudes.clear()
+                if profile.get("email"):
+                    send_approval_email(sol, profile)
                 st.success("Solicitud APROBADA.")
                 st.rerun()
 
@@ -118,6 +120,8 @@ def render_admin_panel(user):
                 supabase.table("solicitudes").update(update_data).eq(
                     "id", sol["id"]
                 ).execute()
-                send_rejection_email(sol, profile, admin_nota_input)
+                get_user_solicitudes.clear()
+                if profile.get("email"):
+                    send_rejection_email(sol, profile, admin_nota_input)
                 st.error("Solicitud RECHAZADA.")
                 st.rerun()

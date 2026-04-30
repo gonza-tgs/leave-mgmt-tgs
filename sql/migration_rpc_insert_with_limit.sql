@@ -34,6 +34,7 @@ BEGIN
         SELECT COUNT(*) INTO v_admin_count
         FROM solicitudes
         WHERE fecha_inicio = p_fecha_inicio
+          AND tipo_permiso = 'administrativo'
           AND estado IN ('aprobado_auto', 'aprobado_manual');
 
         IF v_admin_count >= 2 THEN

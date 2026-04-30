@@ -143,7 +143,7 @@ def evaluate_auto_approval(
         return "rechazado", reason
 
     for sol in user_solicitudes:
-        if sol["estado"] in ["aprobado_auto", "aprobado_manual"]:
+        if sol["tipo_permiso"] == "administrativo" and sol["estado"] in ["aprobado_auto", "aprobado_manual"]:
             diff = abs((_to_date(sol["fecha_inicio"]) - fecha_inicio).days)
             if diff == 1:
                 return (
@@ -153,10 +153,11 @@ def evaluate_auto_approval(
 
     institutional_count = 0
     for sol in all_solicitudes:
-        if _to_date(sol["fecha_inicio"]) == fecha_inicio and sol["estado"] in [
-            "aprobado_auto",
-            "aprobado_manual",
-        ]:
+        if (
+            sol["tipo_permiso"] == "administrativo"
+            and _to_date(sol["fecha_inicio"]) == fecha_inicio
+            and sol["estado"] in ["aprobado_auto", "aprobado_manual"]
+        ):
             institutional_count += 1
 
     if institutional_count >= 2:

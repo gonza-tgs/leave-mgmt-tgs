@@ -28,8 +28,8 @@ def get_user_profile(user_id: str):
         result = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
         return result.data
     except Exception:
-        # FIXED: #6 — log profile fetch failures instead of silently returning None
-        st.warning(f"No se pudo obtener el perfil del usuario {user_id}.")
+        import logging
+        logging.getLogger(__name__).error("No se pudo obtener el perfil del usuario %s", user_id, exc_info=True)
         return None
 
 def create_user_profile(user_id: str, email: str, full_name: str) -> dict:
