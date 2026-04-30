@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import date, timedelta
-from app.database import insert_solicitud, insert_solicitud_with_limit, get_user_solicitudes, get_supabase_admin, get_admin_emails, get_feriados_internos, get_periodos_bloqueados
+from app.database import insert_solicitud, insert_solicitud_with_limit, get_user_solicitudes, get_institutional_solicitudes_for_date, get_admin_emails, get_feriados_internos, get_periodos_bloqueados
 from app.services.leave_rules import evaluate_auto_approval, is_blocked_day, check_anticipation, is_in_blocked_period
 from app.constants import (
     TIPO_PERMISO_LABELS, JORNADA_LABELS,
@@ -86,11 +86,12 @@ def render_submit_request(user):
 
             with st.spinner("Procesando solicitud..."):
                 try:
-                    supabase_admin = get_supabase_admin()
-                    all_solicitudes_raw = supabase_admin.table("solicitudes").select("*").execute()
-                    all_solicitudes = all_solicitudes_raw.data
-
-                    user_solicitudes = [s for s in all_solicitudes if s["user_id"] == user["id"]]
+                    user_solicitudes = get_user_solicitudes(user["id"])
+                    institutional_solicitudes = (
+                        get_institutional_solicitudes_for_date(str(fecha_inicio))
+                        if tipo_permiso == "administrativo"
+                        else []
+                    )
 
                     estado = "pendiente"
                     razon = "Solicitud enviada para revisión manual."
@@ -98,7 +99,7 @@ def render_submit_request(user):
                     admin_nota = ""
                     if tipo_permiso == "administrativo":
                         estado, razon = evaluate_auto_approval(
-                            user["id"], fecha_inicio, jornada, user_solicitudes, all_solicitudes
+                            user["id"], fecha_inicio, jornada, user_solicitudes, institutional_solicitudes
                         )
                         if estado == "pendiente":
                             admin_nota = f"SISTEMA: {razon}"
@@ -131,7 +132,9 @@ def render_submit_request(user):
 
                     if estado == "pendiente":
                         admin_emails = get_admin_emails()
-                        send_new_request_email(solicitud_data, user, admin_emails)
+                        email_ok = send_new_request_email(solicitud_data, user, admin_emails)
+                        if not email_ok:
+                            st.warning("⚠️ La notificación por correo no pudo enviarse. Avisa a un administrador directamente.")
                     elif estado == "rechazado":
                         send_rejection_email(solicitud_data, user, razon)
 

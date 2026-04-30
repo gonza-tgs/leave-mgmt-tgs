@@ -17,6 +17,7 @@ DROP TRIGGER IF EXISTS update_solicitudes_updated_at   ON solicitudes;
 DROP FUNCTION IF EXISTS handle_new_user()              CASCADE;
 DROP FUNCTION IF EXISTS set_es_pagado_default()        CASCADE;
 DROP FUNCTION IF EXISTS update_updated_at_column()     CASCADE;
+DROP FUNCTION IF EXISTS insert_solicitud_with_limit    CASCADE;
 
 DROP TABLE IF EXISTS solicitudes        CASCADE;
 DROP TABLE IF EXISTS feriados_internos  CASCADE;
@@ -116,27 +117,7 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
 
--- 4b. set_es_pagado_default: asigna es_pagado según tipo de permiso en INSERT
-CREATE OR REPLACE FUNCTION set_es_pagado_default()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF NEW.tipo_permiso IN ('administrativo', 'con_goce') THEN
-        NEW.es_pagado := TRUE;
-    ELSE
-        NEW.es_pagado := FALSE;
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER set_es_pagado_on_insert
-    BEFORE INSERT ON solicitudes
-    FOR EACH ROW EXECUTE FUNCTION set_es_pagado_default();
-
-
--- 4c. update_updated_at: actualiza el timestamp en cada UPDATE
+-- 4b. update_updated_at: actualiza el timestamp en cada UPDATE
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -254,3 +235,61 @@ CREATE POLICY admins_manage_periodos
             AND p.rol = 'admin'
         )
     );
+
+
+-- ============================================================
+-- 7. RPC: INSERCIÓN ATÓMICA CON LÍMITE INSTITUCIONAL
+-- ============================================================
+-- Previene race condition donde dos usuarios concurrentes pasan
+-- el chequeo de límite de 2 permisos administrativos por día.
+-- Si ya hay >= 2 aprobados para esa fecha, anota la derivación
+-- en admin_nota pero igual inserta (el admin decide).
+
+CREATE OR REPLACE FUNCTION insert_solicitud_with_limit(
+    p_user_id          UUID,
+    p_tipo_permiso     tipo_permiso_enum,
+    p_fecha_inicio     DATE,
+    p_jornada          jornada_enum,
+    p_estado           estado_enum,
+    p_es_pagado        BOOLEAN,
+    p_motivo           TEXT,
+    p_admin_nota       TEXT
+)
+RETURNS SETOF solicitudes
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+    v_admin_count INT;
+    v_admin_nota  TEXT;
+BEGIN
+    v_admin_nota := p_admin_nota;
+
+    IF p_tipo_permiso = 'administrativo' AND p_estado = 'pendiente' THEN
+        SELECT COUNT(*) INTO v_admin_count
+        FROM solicitudes
+        WHERE fecha_inicio = p_fecha_inicio
+          AND tipo_permiso = 'administrativo'
+          AND estado IN ('aprobado_auto', 'aprobado_manual');
+
+        IF v_admin_count >= 2 THEN
+            IF p_admin_nota IS NOT NULL AND p_admin_nota != '' THEN
+                v_admin_nota := p_admin_nota
+                    || ' | SISTEMA: Límite institucional de 2 permisos alcanzado para este día.';
+            ELSE
+                v_admin_nota := 'SISTEMA: Se ha alcanzado el límite de 2 permisos institucionales para este día. Requiere revisión por parte de la Dirección.';
+            END IF;
+        END IF;
+    END IF;
+
+    RETURN QUERY
+    INSERT INTO solicitudes (
+        user_id, tipo_permiso, fecha_inicio, jornada,
+        estado, es_pagado, motivo, admin_nota
+    ) VALUES (
+        p_user_id, p_tipo_permiso, p_fecha_inicio, p_jornada,
+        p_estado, p_es_pagado, p_motivo, v_admin_nota
+    )
+    RETURNING *;
+END;
+$$;

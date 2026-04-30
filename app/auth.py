@@ -4,7 +4,7 @@ from app.config import ALLOWED_DOMAIN
 
 def validate_domain(email: str) -> bool:
     """Verifica si el correo pertenece al dominio permitido."""
-    return email.endswith(f"@{ALLOWED_DOMAIN}")
+    return email.split("@")[-1] == ALLOWED_DOMAIN
 
 def _get_oauth_url() -> str | None:
     """Genera y cachea la URL OAuth en session_state para esta sesión."""

@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from datetime import datetime
+from functools import lru_cache
 import holidays
 from app.config import MIN_ANTICIPATION_DAYS
 
@@ -11,8 +12,9 @@ def _to_date(value) -> date:
     return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
 
 
+@lru_cache(maxsize=10)
 def get_chilean_holidays(year: int):
-    """Retorna los feriados de Chile para un año específico."""
+    """Retorna los feriados de Chile para un año específico (cacheado por año)."""
     return holidays.Chile(years=[year])
 
 

@@ -72,6 +72,25 @@ def get_user_solicitudes(user_id: str, year: int | None = None):
     result = query.order("fecha_inicio", desc=True).execute()
     return result.data
 
+def get_institutional_solicitudes_for_date(fecha: str) -> list:
+    """Retorna solicitudes administrativas aprobadas para una fecha específica."""
+    supabase = get_supabase_admin()
+    try:
+        result = (
+            supabase.table("solicitudes")
+            .select("tipo_permiso, fecha_inicio, estado")
+            .eq("tipo_permiso", "administrativo")
+            .eq("fecha_inicio", fecha)
+            .in_("estado", ["aprobado_auto", "aprobado_manual"])
+            .execute()
+        )
+        return result.data or []
+    except Exception:
+        import logging
+        logging.getLogger(__name__).error("No se pudo consultar solicitudes institucionales para %s", fecha, exc_info=True)
+        return []
+
+
 def insert_solicitud(solicitud_data: dict):
     """Inserta una nueva solicitud de permiso."""
     supabase = get_supabase_admin()

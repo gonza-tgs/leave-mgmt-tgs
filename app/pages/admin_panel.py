@@ -142,7 +142,7 @@ def render_admin_panel(user):
             st.warning("Modo Solo Lectura: No puedes registrar permisos históricos.")
         else:
             users_profiles = get_profiles_for_admin()
-            users_map = {f"{u['full_name']} ({u['email']})": u["id"] for u in users_profiles}
+            users_map = {f"{u.get('full_name') or 'Sin Nombre'} ({u['email']})": u["id"] for u in users_profiles}
 
             with st.form("form_historico"):
                 selected_user_label = st.selectbox("Usuario *", options=list(users_map.keys()))
