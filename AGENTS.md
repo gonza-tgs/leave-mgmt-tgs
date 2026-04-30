@@ -56,10 +56,11 @@ The project follows a modular structure to separate concerns:
 
 3. **Database Setup:**
    Run the SQL scripts in this order in the Supabase SQL Editor:
-   - `sql/reset.sql` — Full schema (tables, enums, triggers, RLS, indexes)
+   - `sql/reset.sql` — Full schema (tables, enums, triggers, RLS, indexes, RPC)
    - `sql/migration_v2.sql` — `material_entregado` column + `periodos_bloqueados` table
    - `sql/migration_add_admin_read_only.sql` — `admin_read_only` role enum value
    - `sql/migration_rpc_insert_with_limit.sql` — RPC for atomic institutional limit check
+   - `sql/migration_drop_es_pagado_trigger.sql` — Removes `es_pagado` DB trigger (Python handles it now)
 
 ### Running the Application
 ```bash
@@ -85,7 +86,7 @@ uv run streamlit run main.py
 ### Database Schema (Supabase)
 - **Tables:** `profiles` (extends auth users), `solicitudes` (leave requests), `feriados_internos` (single-day holidays), `periodos_bloqueados` (date ranges with no permissions allowed).
 - **RLS:** Row Level Security must be strictly enforced (users can only read/write their own data; admins have full access).
-- **Triggers:** Automatic `updated_at` updates on both tables, profile creation on user signup, `es_pagado` default based on leave type.
+- **Triggers:** Automatic `updated_at` updates on both tables, profile creation on user signup. (The `es_pagado` default trigger was removed — Python handles this logic.)
 - **RPC Functions:** `insert_solicitud_with_limit` — atomic insert with institutional daily limit re-check to prevent race conditions.
 - **Migrations:** All SQL changes go in `sql/` directory and must be run in Supabase SQL Editor.
 

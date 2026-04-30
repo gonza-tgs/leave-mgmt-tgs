@@ -41,10 +41,11 @@ Web system named **"Quiero mi Permiso!"** for employee leave management at Coleg
 
 3. **Database Setup:**
    Run the SQL scripts in this order in the Supabase SQL Editor:
-   - `sql/reset.sql` — Full schema (tables, enums, triggers, RLS, indexes)
+   - `sql/reset.sql` — Full schema (tables, enums, triggers, RLS, indexes, RPC)
    - `sql/migration_v2.sql` — `material_entregado` column + `periodos_bloqueados` table
    - `sql/migration_add_admin_read_only.sql` — `admin_read_only` role enum
    - `sql/migration_rpc_insert_with_limit.sql` — RPC for atomic institutional limit
+   - `sql/migration_drop_es_pagado_trigger.sql` — Remove obsolete `es_pagado` trigger
 
 4. **Run the App:**
    ```bash
@@ -100,7 +101,8 @@ leave-mgmt-tgs/
     ├── reset.sql                     # Full schema
     ├── migration_v2.sql              # material_entregado + periodos_bloqueados
     ├── migration_add_admin_read_only.sql
-    └── migration_rpc_insert_with_limit.sql  # RPC for atomic institutional limit
+    ├── migration_rpc_insert_with_limit.sql  # RPC for atomic institutional limit
+    └── migration_drop_es_pagado_trigger.sql # Remove obsolete trigger
 ```
 
 ## User Roles

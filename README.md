@@ -43,10 +43,11 @@ Sistema web denominado **"Quiero mi Permiso!"** para la gestión de permisos lab
 
 3. **Base de Datos:**
    Ejecuta los scripts SQL en este orden en el Editor SQL de Supabase:
-   - `sql/reset.sql` — Schema completo (tablas, enums, triggers, RLS, indices)
+   - `sql/reset.sql` — Schema completo (tablas, enums, triggers, RLS, indices, RPC)
    - `sql/migration_v2.sql` — Columna `material_entregado` + tabla `periodos_bloqueados`
    - `sql/migration_add_admin_read_only.sql` — Valor `admin_read_only` en enum de roles
    - `sql/migration_rpc_insert_with_limit.sql` — Funcion RPC para limite atomico
+   - `sql/migration_drop_es_pagado_trigger.sql` — Elimina trigger obsoleto de `es_pagado`
 
 4. **Ejecutar la App:**
    ```bash
@@ -102,7 +103,8 @@ leave-mgmt-tgs/
     ├── reset.sql                     # Schema completo
     ├── migration_v2.sql              # material_entregado + periodos_bloqueados
     ├── migration_add_admin_read_only.sql
-    └── migration_rpc_insert_with_limit.sql  # RPC para limite atomico
+    ├── migration_rpc_insert_with_limit.sql  # RPC para limite atomico
+    └── migration_drop_es_pagado_trigger.sql # Elimina trigger obsoleto
 ```
 
 ## Roles de Usuario

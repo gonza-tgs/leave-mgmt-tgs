@@ -482,7 +482,10 @@ El proyecto ha evolucionado respecto al plan original. Cambios clave:
 - **Nueva tabla:** `periodos_bloqueados` — rangos de fechas donde no se permiten permisos.
 - **Nuevo campo:** `material_entregado` en `solicitudes`.
 - **Nuevo RPC:** `insert_solicitud_with_limit` — insercion atomica con chequeo de limite institucional.
-- **Migrations en `sql/`:** `reset.sql`, `migration_v2.sql`, `migration_add_admin_read_only.sql`, `migration_rpc_insert_with_limit.sql`
+- **Trigger removido:** `set_es_pagado_default` — Python asigna `es_pagado` en todos los flujos (submit, approve, backfill historico). El trigger sobrescribia valores explicitos.
+- **Migrations en `sql/`:** `reset.sql`, `migration_v2.sql`, `migration_add_admin_read_only.sql`, `migration_rpc_insert_with_limit.sql`, `migration_drop_es_pagado_trigger.sql`
+- **Backfill historico:** Formulario en admin_panel para registrar permisos ya otorgados antes de produccion.
+- **Optimizacion:** `get_chilean_holidays` usa `@lru_cache`, queries institucionales filtradas por fecha/tipo en lugar de fetch completo.
 - **Sin vistas:** Se usa `SUPABASE_SERVICE_KEY` que bypasea RLS en lugar de vistas separadas.
 - **Sin `.env`:** Se usa `.streamlit/secrets.toml` (estandar Streamlit).
 - **Sin `python-dotenv`:** No necesario con `st.secrets`.
