@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from app.database import get_supabase_admin
-from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS, ESTADO_LABELS
+from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS
 from app.notifications import send_approval_email, send_rejection_email
 
 
