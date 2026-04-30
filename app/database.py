@@ -53,6 +53,13 @@ def get_admin_emails() -> list:
     result = supabase.table("profiles").select("email").in_("rol", ["admin", "admin_read_only"]).execute()
     return [r["email"] for r in result.data] if result.data else []
 
+@st.cache_data(ttl=300)
+def get_profiles_for_admin():
+    """Retorna todos los perfiles para uso exclusivo de admins."""
+    supabase = get_supabase_admin()
+    result = supabase.table("profiles").select("id, full_name, email").order("full_name").execute()
+    return result.data or []
+
 # --- Consultas de Solicitudes ---
 
 @st.cache_data(ttl=60)

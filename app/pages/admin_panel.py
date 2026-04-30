@@ -1,6 +1,5 @@
 import streamlit as st
-import pandas as pd
-from app.database import get_supabase_admin, get_user_solicitudes
+from app.database import get_supabase_admin, get_user_solicitudes, get_profiles_for_admin
 from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS, ESTADO_LABELS
 from app.notifications import send_approval_email, send_rejection_email
 
@@ -90,20 +89,23 @@ def render_admin_panel(user):
                     type="primary",
                     disabled=is_read_only,
                 ):
-                    update_data = {
-                        "estado": "aprobado_manual",
-                        "es_pagado": es_pagado,
-                        "material_entregado": material_entregado,
-                        "admin_nota": admin_nota_input,
-                    }
-                    supabase.table("solicitudes").update(update_data).eq(
-                        "id", sol["id"]
-                    ).execute()
-                    get_user_solicitudes.clear()
-                    if profile.get("email"):
-                        send_approval_email(sol, profile)
-                    st.success("Solicitud APROBADA.")
-                    st.rerun()
+                    try:
+                        update_data = {
+                            "estado": "aprobado_manual",
+                            "es_pagado": es_pagado,
+                            "material_entregado": material_entregado,
+                            "admin_nota": admin_nota_input,
+                        }
+                        supabase.table("solicitudes").update(update_data).eq(
+                            "id", sol["id"]
+                        ).execute()
+                        get_user_solicitudes.clear()
+                        if profile.get("email"):
+                            send_approval_email(sol, profile)
+                        st.success("Solicitud APROBADA.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al aprobar: {e}")
 
                 if btn_col2.button(
                     "Rechazar",
@@ -111,19 +113,22 @@ def render_admin_panel(user):
                     type="secondary",
                     disabled=is_read_only,
                 ):
-                    update_data = {
-                        "estado": "rechazado",
-                        "material_entregado": material_entregado,
-                        "admin_nota": admin_nota_input,
-                    }
-                    supabase.table("solicitudes").update(update_data).eq(
-                        "id", sol["id"]
-                    ).execute()
-                    get_user_solicitudes.clear()
-                    if profile.get("email"):
-                        send_rejection_email(sol, profile, admin_nota_input)
-                    st.error("Solicitud RECHAZADA.")
-                    st.rerun()
+                    try:
+                        update_data = {
+                            "estado": "rechazado",
+                            "material_entregado": material_entregado,
+                            "admin_nota": admin_nota_input,
+                        }
+                        supabase.table("solicitudes").update(update_data).eq(
+                            "id", sol["id"]
+                        ).execute()
+                        get_user_solicitudes.clear()
+                        if profile.get("email"):
+                            send_rejection_email(sol, profile, admin_nota_input)
+                        st.error("Solicitud RECHAZADA.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al rechazar: {e}")
 
     # --- Registrar Permiso Histórico (backfill) ---
     st.divider()
@@ -136,8 +141,8 @@ def render_admin_panel(user):
         if is_read_only:
             st.warning("Modo Solo Lectura: No puedes registrar permisos históricos.")
         else:
-            users_res = supabase.table("profiles").select("id, full_name, email").order("full_name").execute()
-            users_map = {f"{u['full_name']} ({u['email']})": u["id"] for u in (users_res.data or [])}
+            users_profiles = get_profiles_for_admin()
+            users_map = {f"{u['full_name']} ({u['email']})": u["id"] for u in users_profiles}
 
             with st.form("form_historico"):
                 selected_user_label = st.selectbox("Usuario *", options=list(users_map.keys()))
@@ -185,7 +190,10 @@ def render_admin_panel(user):
                             "motivo": motivo_hist.strip() or None,
                             "admin_nota": admin_nota_hist.strip() or None,
                         }
-                        supabase.table("solicitudes").insert(insert_data).execute()
-                        get_user_solicitudes.clear()
-                        st.success("Permiso histórico registrado correctamente.")
-                        st.rerun()
+                        try:
+                            supabase.table("solicitudes").insert(insert_data).execute()
+                            get_user_solicitudes.clear()
+                            st.success("Permiso histórico registrado correctamente.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al registrar permiso histórico: {e}")
