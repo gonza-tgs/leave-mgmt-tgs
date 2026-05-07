@@ -1,6 +1,14 @@
 import streamlit as st
-from app.database import get_supabase_auth, get_user_profile, create_user_profile
-from app.config import ALLOWED_DOMAIN
+from supabase import create_client
+from app.database import get_user_profile, create_user_profile
+from app.config import ALLOWED_DOMAIN, SUPABASE_URL, SUPABASE_KEY
+
+def _get_session_auth_client():
+    """Obtiene (o crea) un cliente Supabase por sesión para OAuth.
+    PKCE requiere que el mismo objeto que generó la URL también intercambie el código."""
+    if "supabase_auth_client" not in st.session_state:
+        st.session_state["supabase_auth_client"] = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return st.session_state["supabase_auth_client"]
 
 def validate_domain(email: str) -> bool:
     """Verifica si el correo pertenece al dominio permitido."""
@@ -9,7 +17,7 @@ def validate_domain(email: str) -> bool:
 def _get_oauth_url() -> str | None:
     """Genera y cachea la URL OAuth en session_state para esta sesión."""
     if "oauth_url" not in st.session_state:
-        supabase = get_supabase_auth()
+        supabase = _get_session_auth_client()
         redirect_url = st.secrets.get("REDIRECT_URL", "http://localhost:8501")
         response = supabase.auth.sign_in_with_oauth({
             "provider": "google",
@@ -36,7 +44,7 @@ def handle_auth_callback():
         return
 
     try:
-        supabase = get_supabase_auth()
+        supabase = _get_session_auth_client()
         session_response = supabase.auth.exchange_code_for_session({"auth_code": code})
         user = session_response.user if session_response else None
 

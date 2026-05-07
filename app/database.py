@@ -2,10 +2,6 @@ import streamlit as st
 from supabase import create_client, Client
 from app.config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_KEY
 
-def get_supabase_auth() -> Client:
-    """Retorna un cliente Supabase fresco para operaciones de auth (NO cacheado — evita conflictos PKCE entre sesiones)."""
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
-
 @st.cache_resource
 def get_supabase() -> Client:
     """Retorna el cliente Supabase para operaciones del usuario."""
