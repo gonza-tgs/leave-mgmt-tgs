@@ -65,11 +65,11 @@ def handle_auth_callback():
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("Error en autenticación: %s", e, exc_info=True)
-        st.error(f"Error al procesar la autenticación: {e}")
-        # Limpiar query params para evitar reintentos con un code inválido
+        # Guardar el error en session_state para que sobreviva el rerun y sea visible
+        st.session_state["_auth_error"] = str(e)
         if st.query_params:
             st.query_params.clear()
-            st.rerun()
+        st.rerun()
 
 def is_authenticated() -> bool:
     """Verifica si hay un usuario autenticado en st.session_state."""
@@ -89,6 +89,9 @@ def render_login_page():
     st.title("🏫 Quiero mi Permiso!")
     st.subheader("Colegio TGS")
     st.write("Por favor, inicia sesión con tu cuenta institucional para continuar.")
+
+    if "_auth_error" in st.session_state:
+        st.error(f"Error de autenticación: {st.session_state.pop('_auth_error')}")
 
     oauth_url = _get_oauth_url()
     if oauth_url:
