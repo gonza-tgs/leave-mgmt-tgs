@@ -19,12 +19,16 @@ def _pkce_pair() -> tuple[str, str]:
 
 def _get_oauth_url() -> str | None:
     """Genera y cachea la URL OAuth PKCE. El code_verifier viaja en el redirect_to
-    para sobrevivir la nueva sesión de Streamlit que se crea al volver de Google."""
+    como respaldo para sobrevivir la nueva sesión de Streamlit."""
     if "oauth_url" not in st.session_state:
         verifier, challenge = _pkce_pair()
+        # Guardar en session_state como respaldo principal
+        st.session_state["pkce_verifier"] = verifier
+        
         redirect_url = st.secrets.get("REDIRECT_URL", "http://localhost:8501")
         # Supabase preserva los query params del redirect_to al redirigir de vuelta
         redirect_with_cv = f"{redirect_url}?pkce_cv={verifier}"
+        
         params = urlencode({
             "provider": "google",
             "redirect_to": redirect_with_cv,
@@ -42,19 +46,33 @@ def handle_auth_callback():
         return
 
     query_params = st.query_params
+    
+    # 1. Manejo de errores explícitos de Supabase en la URL
     error = query_params.get("error")
     if error:
         desc = query_params.get("error_description", "sin descripción")
-        st.session_state["_auth_error"] = f"Error OAuth de Supabase: {error} — {desc}"
+        st.session_state["_auth_error"] = f"Error OAuth: {error} — {desc}"
         st.query_params.clear()
         st.rerun()
         return
 
+    # 2. Verificar si hay un código de autenticación
     code = query_params.get("code")
     if not code:
         return
 
-    code_verifier = query_params.get("pkce_cv")
+    # 3. Obtener el verifier (de la URL o del session_state)
+    code_verifier = query_params.get("pkce_cv") or st.session_state.get("pkce_verifier")
+
+    if not code_verifier:
+        st.session_state["_auth_error"] = (
+            "Falta el verificador de código (PKCE). Esto suele ocurrir si la REDIRECT_URL "
+            "configurada en los secrets no coincide con la URL permitida en Supabase, "
+            "causando que los parámetros se pierdan en la redirección."
+        )
+        st.query_params.clear()
+        st.rerun()
+        return
 
     try:
         supabase = get_supabase_auth()
@@ -65,34 +83,44 @@ def handle_auth_callback():
         user = session_response.user if session_response else None
 
         if not user:
-            st.error("No se pudo obtener la sesión de usuario desde Supabase.")
+            st.session_state["_auth_error"] = "No se pudo obtener la sesión de usuario desde Supabase."
+            st.query_params.clear()
+            st.rerun()
             return
 
         if not validate_domain(user.email):
-            st.error(f"El correo '{user.email}' no pertenece al dominio institucional '@{ALLOWED_DOMAIN}'.")
+            st.session_state["_auth_error"] = f"El correo '{user.email}' no pertenece al dominio institucional '@{ALLOWED_DOMAIN}'."
             supabase.auth.sign_out()
+            st.query_params.clear()
+            st.rerun()
             return
 
         profile = get_user_profile(user.id)
         if not profile:
             full_name = (user.user_metadata or {}).get("full_name") or (user.user_metadata or {}).get("name") or user.email
             profile = create_user_profile(user.id, user.email, full_name)
+        
         if not profile:
-            st.error("No se pudo crear tu perfil. Contacta al administrador.")
+            st.session_state["_auth_error"] = "No se pudo crear o recuperar tu perfil. Contacta al administrador."
+            st.query_params.clear()
+            st.rerun()
             return
 
+        # Éxito: Guardar usuario y limpiar todo
         st.session_state["user"] = profile
-        # Limpiar el código de la URL para no reprocesarlo en recargas
+        if "pkce_verifier" in st.session_state:
+            del st.session_state["pkce_verifier"]
+        if "oauth_url" in st.session_state:
+            del st.session_state["oauth_url"]
+            
         st.query_params.clear()
         st.rerun()
 
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("Error en autenticación: %s", e, exc_info=True)
-        # Guardar el error en session_state para que sobreviva el rerun y sea visible
-        st.session_state["_auth_error"] = str(e)
-        if st.query_params:
-            st.query_params.clear()
+        st.session_state["_auth_error"] = f"Error inesperado: {str(e)}"
+        st.query_params.clear()
         st.rerun()
 
 def is_authenticated() -> bool:
