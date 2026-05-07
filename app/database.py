@@ -1,6 +1,11 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from app.config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_KEY
+
+def get_supabase_auth() -> Client:
+    """Cliente Supabase sin PKCE para el flujo OAuth server-side de Streamlit.
+    flow_type='implicit' evita el code_verifier que se pierde entre sesiones al hacer redirect."""
+    return create_client(SUPABASE_URL, SUPABASE_KEY, options=ClientOptions(flow_type="implicit"))
 
 @st.cache_resource
 def get_supabase() -> Client:
