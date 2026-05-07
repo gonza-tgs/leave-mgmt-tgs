@@ -1,20 +1,20 @@
 TIPO_PERMISO_LABELS = {
     "administrativo": "Permiso Administrativo",
-    "con_goce":       "Con Goce de Sueldo",
-    "sin_goce":       "Sin Goce de Sueldo",
+    "con_goce": "Con Goce de Sueldo",
+    "sin_goce": "Sin Goce de Sueldo",
 }
 
 ESTADO_LABELS = {
-    "pendiente":       "Pendiente",
-    "aprobado_auto":   "Aprobado",
+    "pendiente": "Pendiente",
+    "aprobado_auto": "Aprobado",
     "aprobado_manual": "Aprobado",
-    "rechazado":       "Rechazado",
+    "rechazado": "Rechazado",
 }
 
 JORNADA_LABELS = {
     "completa": "Jornada Completa",
-    "manana":   "Mañana",
-    "tarde":    "Tarde",
+    "manana": "Mañana",
+    "tarde": "Tarde",
 }
 
 ROL_LABELS = {
@@ -40,13 +40,13 @@ CONDICIONES_ADMINISTRATIVO = """
 - **Días prohibidos:** No se permiten permisos administrativos los días **lunes**, **viernes**, vísperas de feriado ni días posteriores a un feriado.
 - **Días consecutivos:** No se permiten permisos administrativos en días consecutivos a otros ya aprobados. Si ocurre, la solicitud queda pendiente de revisión.
 - **Límite institucional:** Máximo **2 permisos administrativos** por día en toda la institución. Si se alcanza, la solicitud queda pendiente de revisión.
-- **Material de reemplazo:** Debes entregar material para el día solicitado. La administradora verificará este requisito.
+- **Material de reemplazo:** Debes entregar material para el día solicitado. La administración verificará este requisito.
 """
 
 CONDICIONES_CON_GOCE = """
 ### Permiso Con Goce de Sueldo
 
-Debes indicar el **motivo específico** por el cual solicitas este permiso. Las condiciones legales para acceder son:
+Debes indicar el **motivo específico** por el cual solicitas este permiso. Las condiciones para acceder son:
 
 **Fallecimiento de familiares directos** (días corridos desde el fallecimiento):
 - Hijo/a: **10 días**
