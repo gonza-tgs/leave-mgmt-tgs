@@ -1,27 +1,39 @@
+import hashlib
+import base64
+import secrets
+from urllib.parse import urlencode
 import streamlit as st
 from app.database import get_supabase_auth, get_user_profile, create_user_profile
-from app.config import ALLOWED_DOMAIN
+from app.config import ALLOWED_DOMAIN, SUPABASE_URL
 
 def validate_domain(email: str) -> bool:
     """Verifica si el correo pertenece al dominio permitido."""
     return email.split("@")[-1] == ALLOWED_DOMAIN
 
+def _pkce_pair() -> tuple[str, str]:
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b"=").decode()
+    return verifier, challenge
+
 def _get_oauth_url() -> str | None:
-    """Genera y cachea la URL OAuth en session_state para esta sesión."""
+    """Genera y cachea la URL OAuth PKCE. El code_verifier viaja en el redirect_to
+    para sobrevivir la nueva sesión de Streamlit que se crea al volver de Google."""
     if "oauth_url" not in st.session_state:
-        supabase = get_supabase_auth()
+        verifier, challenge = _pkce_pair()
         redirect_url = st.secrets.get("REDIRECT_URL", "http://localhost:8501")
-        response = supabase.auth.sign_in_with_oauth({
+        # Supabase preserva los query params del redirect_to al redirigir de vuelta
+        redirect_with_cv = f"{redirect_url}?pkce_cv={verifier}"
+        params = urlencode({
             "provider": "google",
-            "options": {
-                "redirect_to": redirect_url,
-                "query_params": {"access_type": "offline", "prompt": "consent"},
-            }
+            "redirect_to": redirect_with_cv,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "access_type": "offline",
+            "prompt": "consent",
         })
-        if response and hasattr(response, "url") and response.url:
-            st.session_state["oauth_url"] = response.url
-        else:
-            return None
+        st.session_state["oauth_url"] = f"{SUPABASE_URL}/auth/v1/authorize?{params}"
     return st.session_state["oauth_url"]
 
 def handle_auth_callback():
@@ -30,14 +42,26 @@ def handle_auth_callback():
         return
 
     query_params = st.query_params
-    code = query_params.get("code")
+    error = query_params.get("error")
+    if error:
+        desc = query_params.get("error_description", "sin descripción")
+        st.session_state["_auth_error"] = f"Error OAuth de Supabase: {error} — {desc}"
+        st.query_params.clear()
+        st.rerun()
+        return
 
+    code = query_params.get("code")
     if not code:
         return
 
+    code_verifier = query_params.get("pkce_cv")
+
     try:
         supabase = get_supabase_auth()
-        session_response = supabase.auth.exchange_code_for_session({"auth_code": code})
+        session_response = supabase.auth.exchange_code_for_session({
+            "auth_code": code,
+            "code_verifier": code_verifier,
+        })
         user = session_response.user if session_response else None
 
         if not user:
