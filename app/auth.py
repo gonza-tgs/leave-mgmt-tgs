@@ -1,5 +1,5 @@
 import streamlit as st
-from app.database import get_supabase, get_user_profile, create_user_profile
+from app.database import get_supabase_auth, get_user_profile, create_user_profile
 from app.config import ALLOWED_DOMAIN
 
 def validate_domain(email: str) -> bool:
@@ -9,7 +9,7 @@ def validate_domain(email: str) -> bool:
 def _get_oauth_url() -> str | None:
     """Genera y cachea la URL OAuth en session_state para esta sesión."""
     if "oauth_url" not in st.session_state:
-        supabase = get_supabase()
+        supabase = get_supabase_auth()
         redirect_url = st.secrets.get("REDIRECT_URL", "http://localhost:8501")
         response = supabase.auth.sign_in_with_oauth({
             "provider": "google",
@@ -36,7 +36,7 @@ def handle_auth_callback():
         return
 
     try:
-        supabase = get_supabase()
+        supabase = get_supabase_auth()
         session_response = supabase.auth.exchange_code_for_session({"auth_code": code})
         user = session_response.user if session_response else None
 
@@ -63,10 +63,13 @@ def handle_auth_callback():
         st.rerun()
 
     except Exception as e:
-        # FIXED: #7 — log auth errors explicitly
         import logging
         logging.getLogger(__name__).error("Error en autenticación: %s", e, exc_info=True)
         st.error(f"Error al procesar la autenticación: {e}")
+        # Limpiar query params para evitar reintentos con un code inválido
+        if st.query_params:
+            st.query_params.clear()
+            st.rerun()
 
 def is_authenticated() -> bool:
     """Verifica si hay un usuario autenticado en st.session_state."""
