@@ -24,131 +24,141 @@ def render_submit_request(user):
         st.divider()
         st.markdown(CONDICIONES_SIN_GOCE)
     
-    with st.form("request_form"):
-        # Selección de tipo de permiso
-        tipo_permiso = st.selectbox(
-            "Tipo de Permiso",
-            options=list(TIPO_PERMISO_LABELS.keys()),
-            format_func=lambda x: TIPO_PERMISO_LABELS[x]
-        )
-        
-        # Selección de fecha (mínimo hoy, máximo +90 días)
-        fecha_inicio = st.date_input(
-            "Fecha del Permiso",
-            min_value=date.today(),
-            max_value=date.today() + timedelta(days=90),
-            help="Puedes solicitar permisos hasta con 90 días de anticipación."
-        )
-        
-        # Selección de jornada
-        jornada = st.radio(
-            "Jornada",
-            options=list(JORNADA_LABELS.keys()),
-            format_func=lambda x: JORNADA_LABELS[x],
-            horizontal=True
-        )
-        
-        # Motivo (obligatorio)
-        MOTIVO_OPCIONES = ["Trámites", "Médicos", "Personal", "Otro"]
-        motivo_tipo = st.selectbox("Motivo *", options=MOTIVO_OPCIONES)
+    # Formulario dinámico reactivo sin st.form para permitir la actualización de campos condicionales
+    st.subheader("Completa los datos de tu solicitud")
 
-        motivo_detalle = ""
-        if motivo_tipo == "Otro":
-            motivo_detalle = st.text_input("Especificar motivo *", max_chars=300)
+    # Selección de tipo de permiso
+    tipo_permiso = st.selectbox(
+        "Tipo de Permiso",
+        options=list(TIPO_PERMISO_LABELS.keys()),
+        format_func=lambda x: TIPO_PERMISO_LABELS[x]
+    )
+    
+    # Selección de fecha (mínimo hoy, máximo +90 días)
+    fecha_inicio = st.date_input(
+        "Fecha del Permiso",
+        min_value=date.today(),
+        max_value=date.today() + timedelta(days=90),
+        help="Puedes solicitar permisos hasta con 90 días de anticipación."
+    )
+    
+    # Selección de jornada
+    jornada = st.radio(
+        "Jornada",
+        options=list(JORNADA_LABELS.keys()),
+        format_func=lambda x: JORNADA_LABELS[x],
+        horizontal=True
+    )
+    
+    # Motivo (obligatorio)
+    MOTIVO_OPCIONES = ["Trámites", "Médicos", "Personal", "Otro"]
+    motivo_tipo = st.selectbox("Motivo *", options=MOTIVO_OPCIONES)
 
-        submit_button = st.form_submit_button("Enviar Solicitud", icon="📤")
+    motivo_detalle = ""
+    if motivo_tipo == "Otro":
+        motivo_detalle = st.text_input("Especificar motivo *", max_chars=300, placeholder="Escribe aquí el motivo específico...")
 
-        if submit_button:
-            if motivo_tipo == "Otro" and not motivo_detalle.strip():
-                st.error("Por favor especifica el motivo.")
-                st.stop()
+    submit_button = st.button("Enviar Solicitud", icon="📤", type="primary")
 
-            feriados = get_feriados_internos()
-            periodos = get_periodos_bloqueados()
+    if submit_button:
+        if motivo_tipo == "Otro" and not motivo_detalle.strip():
+            st.error("⚠️ Por favor especifica el motivo. Es obligatorio si seleccionas 'Otro'.")
+            st.stop()
 
-            bloqueado, razon_bloqueo = is_blocked_day(fecha_inicio, feriados)
-            if bloqueado:
-                st.error(f"Fecha no válida: {razon_bloqueo}")
-                st.info(SUGERENCIA_RECHAZO_BLOQUEO)
-                st.stop()
+        feriados = get_feriados_internos()
+        periodos = get_periodos_bloqueados()
 
-            bloqueado_periodo, razon_periodo = is_in_blocked_period(fecha_inicio, periodos)
-            if bloqueado_periodo:
-                st.error(f"Fecha no válida: {razon_periodo}")
-                st.info(SUGERENCIA_RECHAZO_BLOQUEO)
-                st.stop()
+        # Validación de día no laborable o bloqueado por administración
+        bloqueado, razon_bloqueo = is_blocked_day(fecha_inicio, feriados)
+        if bloqueado:
+            st.error(f"Fecha no válida: {razon_bloqueo}")
+            st.info(SUGERENCIA_RECHAZO_BLOQUEO)
+            st.stop()
 
-            anticipacion_ok, razon_anticipacion = check_anticipation(fecha_inicio)
-            if not anticipacion_ok:
+        bloqueado_periodo, razon_periodo = is_in_blocked_period(fecha_inicio, periodos)
+        if bloqueado_periodo:
+            st.error(f"Fecha no válida: {razon_periodo}")
+            st.info(SUGERENCIA_RECHAZO_BLOQUEO)
+            st.stop()
+
+        # Validación de anticipación
+        anticipacion_ok, razon_anticipacion = check_anticipation(fecha_inicio)
+        if not anticipacion_ok:
+            # Auto-rechazo estricto únicamente para permisos administrativos
+            if tipo_permiso == "administrativo":
                 st.error(f"Fecha no válida: {razon_anticipacion}")
                 st.info(SUGERENCIA_RECHAZO_ANTICIPACION)
                 st.stop()
 
-            with st.spinner("Procesando solicitud..."):
-                try:
-                    user_solicitudes = get_user_solicitudes(user["id"])
-                    institutional_solicitudes = (
-                        get_institutional_solicitudes_for_date(str(fecha_inicio))
-                        if tipo_permiso == "administrativo"
-                        else []
+        with st.spinner("Procesando solicitud..."):
+            try:
+                user_solicitudes = get_user_solicitudes(user["id"])
+                institutional_solicitudes = (
+                    get_institutional_solicitudes_for_date(str(fecha_inicio))
+                    if tipo_permiso == "administrativo"
+                    else []
+                )
+
+                estado = "pendiente"
+                razon = "Solicitud enviada para revisión manual."
+
+                admin_nota = ""
+                # Si es Con/Sin Goce y no cumple anticipación, inyectamos la advertencia del sistema
+                if not anticipacion_ok and tipo_permiso in ["con_goce", "sin_goce"]:
+                    admin_nota = f"SISTEMA: Solicitud fuera de plazo ({razon_anticipacion})"
+
+                if tipo_permiso == "administrativo":
+                    estado, razon = evaluate_auto_approval(
+                        user["id"], fecha_inicio, jornada, user_solicitudes, institutional_solicitudes
                     )
+                    if estado == "pendiente":
+                        admin_nota = f"SISTEMA: {razon}"
 
-                    estado = "pendiente"
-                    razon = "Solicitud enviada para revisión manual."
+                es_pagado = tipo_permiso in ["administrativo", "con_goce"]
 
-                    admin_nota = ""
+                motivo = motivo_tipo if motivo_tipo != "Otro" else f"Otro: {motivo_detalle.strip()}"
+
+                solicitud_data = {
+                    "user_id": user["id"],
+                    "tipo_permiso": tipo_permiso,
+                    "fecha_inicio": str(fecha_inicio),
+                    "jornada": jornada,
+                    "estado": estado,
+                    "es_pagado": es_pagado,
+                    "motivo": motivo,
+                    "admin_nota": admin_nota
+                }
+
+                # FIXED: #4 — use RPC for atomic institutional limit re-check
+                if tipo_permiso == "administrativo" and estado == "pendiente":
+                    result = insert_solicitud_with_limit(solicitud_data)
+                    # RPC may have appended a limit note — pick it up for display
+                    if result and result[0].get("admin_nota"):
+                        rpc_nota = result[0]["admin_nota"]
+                        if "Límite institucional" in rpc_nota and "Límite institucional" not in admin_nota:
+                            razon += " | Se ha alcanzado el límite de 2 permisos institucionales para este día."
+                else:
+                    insert_solicitud(solicitud_data)
+
+                if estado == "pendiente":
+                    admin_emails = get_admin_emails()
+                    email_ok = send_new_request_email(solicitud_data, user, admin_emails)
+                    send_received_pending_email(solicitud_data, user)
+                    if not email_ok:
+                        st.warning("⚠️ La notificación por correo a los administradores no pudo enviarse. Avisa a un administrador directamente.")
+                elif estado == "rechazado":
+                    send_rejection_email(solicitud_data, user, razon)
+
+                if estado == "pendiente":
+                    st.warning(f"⏳ Solicitud Enviada para Revisión.\n\n{razon}")
+                elif estado == "rechazado":
+                    st.error(f"❌ Solicitud Rechazada.\n\n{razon}")
                     if tipo_permiso == "administrativo":
-                        estado, razon = evaluate_auto_approval(
-                            user["id"], fecha_inicio, jornada, user_solicitudes, institutional_solicitudes
-                        )
-                        if estado == "pendiente":
-                            admin_nota = f"SISTEMA: {razon}"
-
-                    es_pagado = tipo_permiso in ["administrativo", "con_goce"]
-
-                    motivo = motivo_tipo if motivo_tipo != "Otro" else f"Otro: {motivo_detalle.strip()}"
-
-                    solicitud_data = {
-                        "user_id": user["id"],
-                        "tipo_permiso": tipo_permiso,
-                        "fecha_inicio": str(fecha_inicio),
-                        "jornada": jornada,
-                        "estado": estado,
-                        "es_pagado": es_pagado,
-                        "motivo": motivo,
-                        "admin_nota": admin_nota
-                    }
-
-                    # FIXED: #4 — use RPC for atomic institutional limit re-check
-                    if tipo_permiso == "administrativo" and estado == "pendiente":
-                        result = insert_solicitud_with_limit(solicitud_data)
-                        # RPC may have appended a limit note — pick it up for display
-                        if result and result[0].get("admin_nota"):
-                            rpc_nota = result[0]["admin_nota"]
-                            if "Límite institucional" in rpc_nota and "Límite institucional" not in admin_nota:
-                                razon += " | Se ha alcanzado el límite de 2 permisos institucionales para este día."
+                        st.info(SUGERENCIA_RECHAZO_ADMIN)
                     else:
-                        insert_solicitud(solicitud_data)
+                        st.info(SUGERENCIA_RECHAZO_GENERAL)
 
-                    if estado == "pendiente":
-                        admin_emails = get_admin_emails()
-                        email_ok = send_new_request_email(solicitud_data, user, admin_emails)
-                        send_received_pending_email(solicitud_data, user)
-                        if not email_ok:
-                            st.warning("⚠️ La notificación por correo a los administradores no pudo enviarse. Avisa a un administrador directamente.")
-                    elif estado == "rechazado":
-                        send_rejection_email(solicitud_data, user, razon)
-
-                    if estado == "pendiente":
-                        st.warning(f"⏳ Solicitud Enviada para Revisión.\n\n{razon}")
-                    elif estado == "rechazado":
-                        st.error(f"❌ Solicitud Rechazada.\n\n{razon}")
-                        if tipo_permiso == "administrativo":
-                            st.info(SUGERENCIA_RECHAZO_ADMIN)
-                        else:
-                            st.info(SUGERENCIA_RECHAZO_GENERAL)
-
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).error("Error al procesar solicitud: %s", e, exc_info=True)
-                    st.error(f"Ocurrió un error al procesar tu solicitud: {str(e)}")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error("Error al procesar solicitud: %s", e, exc_info=True)
+                st.error(f"Ocurrió un error al procesar tu solicitud: {str(e)}")
