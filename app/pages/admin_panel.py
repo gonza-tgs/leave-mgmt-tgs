@@ -27,6 +27,25 @@ def render_admin_panel(user):
     if not pendientes:
         st.success("No hay solicitudes pendientes de revisión.")
     else:
+        # Optimización: Obtener aprobaciones previas en lote para las fechas en cuestión
+        fechas_pendientes = list(set([p["fecha_inicio"] for p in pendientes]))
+        aprobados_por_fecha = {}
+        try:
+            aprobados_res = (
+                supabase.table("solicitudes")
+                .select("fecha_inicio")
+                .eq("tipo_permiso", "administrativo")
+                .in_("fecha_inicio", fechas_pendientes)
+                .in_("estado", ["aprobado_auto", "aprobado_manual"])
+                .execute()
+            )
+            for a in aprobados_res.data:
+                f = a["fecha_inicio"]
+                aprobados_por_fecha[f] = aprobados_por_fecha.get(f, 0) + 1
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error("Error al obtener aprobaciones agrupadas: %s", e)
+
         st.write(f"Hay {len(pendientes)} solicitudes esperando tu revisión.")
 
         for sol in pendientes:
@@ -50,6 +69,14 @@ def render_admin_panel(user):
                     st.warning(
                         f"⚠️ **Derivación Automática:** {sol['admin_nota'].replace('SISTEMA: ', '')}"
                     )
+
+                if sol["tipo_permiso"] == "administrativo":
+                    aprobados_hoy = aprobados_por_fecha.get(sol["fecha_inicio"], 0)
+                    if aprobados_hoy >= 2:
+                        st.error(
+                            f"🚨 **¡Atención!** Ya se han aprobado **{aprobados_hoy}** permisos administrativos para el día **{sol['fecha_inicio']}**. "
+                            "Si apruebas esta solicitud, se superará el límite institucional sugerido de 2 permisos diarios."
+                        )
 
                 st.divider()
 

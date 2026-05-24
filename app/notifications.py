@@ -49,11 +49,34 @@ Fecha: {solicitud['fecha_inicio']}
 Jornada: {jornada_label}
 Motivo Docente: {solicitud.get('motivo') or 'Sin motivo'}{razon_sistema}
 
-Ingresa al sistema para revisarla y aprobarla o rechazarla.
+Ingresa al sistema para revisarla y aprobarla o rechazarla:
+https://gestion-permisos-tgs.streamlit.app/
 
 Este es un mensaje automático de Quiero mi Permiso! - Colegio TGS.
     """
     return _send_email(admin_emails, subject, body)
+
+
+def send_received_pending_email(solicitud, user_profile) -> bool:
+    """Notifica al usuario que su solicitud fue recibida y está en proceso de revisión."""
+    tipo_label = TIPO_PERMISO_LABELS.get(solicitud['tipo_permiso'], solicitud['tipo_permiso'])
+    jornada_label = JORNADA_LABELS.get(solicitud['jornada'], solicitud['jornada'])
+    subject = f"Solicitud de Permiso Recibida (En Revisión) — {solicitud['fecha_inicio']}"
+    body = f"""
+Estimado/a {user_profile['full_name']},
+
+Confirmamos que hemos recibido tu solicitud de permiso y se encuentra actualmente EN PROCESO DE REVISIÓN por parte de la Dirección.
+
+Tipo: {tipo_label}
+Fecha: {solicitud['fecha_inicio']}
+Jornada: {jornada_label}
+
+Te notificaremos por correo electrónico una vez que tu solicitud haya sido procesada. Puedes hacer seguimiento ingresando al sistema:
+https://gestion-permisos-tgs.streamlit.app/
+
+Este es un mensaje automático de Quiero mi Permiso! - Colegio TGS.
+    """
+    return _send_email(user_profile['email'], subject, body)
 
 
 

@@ -53,11 +53,6 @@ def is_prohibited_day(check_date: date) -> tuple[bool, str]:
     Verifica si un día está prohibido para permisos administrativos.
     Retorna (es_prohibido, razon).
     """
-    if check_date.weekday() == 0:
-        return True, "Los lunes son días prohibidos para permisos administrativos."
-    if check_date.weekday() == 4:
-        return True, "Los viernes son días prohibidos para permisos administrativos."
-
     cl_holidays = get_chilean_holidays(check_date.year)
 
     if check_date in cl_holidays:
@@ -143,6 +138,18 @@ def evaluate_auto_approval(
     prohibited, reason = is_prohibited_day(fecha_inicio)
     if prohibited:
         return "rechazado", reason
+
+    # Lunes y viernes ya no se rechazan automáticamente, sino que van a pendiente:
+    if fecha_inicio.weekday() == 0:
+        return (
+            "pendiente",
+            "Solicitud en día lunes. Requiere revisión especial por parte de la Dirección.",
+        )
+    if fecha_inicio.weekday() == 4:
+        return (
+            "pendiente",
+            "Solicitud en día viernes. Requiere revisión especial por parte de la Dirección.",
+        )
 
     for sol in user_solicitudes:
         if sol["tipo_permiso"] == "administrativo" and sol["estado"] in ["aprobado_auto", "aprobado_manual"]:

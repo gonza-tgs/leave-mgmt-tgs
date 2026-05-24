@@ -9,7 +9,7 @@ from app.constants import (
     SUGERENCIA_RECHAZO_ANTICIPACION, SUGERENCIA_RECHAZO_BLOQUEO,
     SUGERENCIA_RECHAZO_ADMIN, SUGERENCIA_RECHAZO_GENERAL,
 )
-from app.notifications import send_new_request_email, send_rejection_email
+from app.notifications import send_new_request_email, send_rejection_email, send_received_pending_email
 
 def render_submit_request(user):
     """Renderiza el formulario para nueva solicitud."""
@@ -133,8 +133,9 @@ def render_submit_request(user):
                     if estado == "pendiente":
                         admin_emails = get_admin_emails()
                         email_ok = send_new_request_email(solicitud_data, user, admin_emails)
+                        send_received_pending_email(solicitud_data, user)
                         if not email_ok:
-                            st.warning("⚠️ La notificación por correo no pudo enviarse. Avisa a un administrador directamente.")
+                            st.warning("⚠️ La notificación por correo a los administradores no pudo enviarse. Avisa a un administrador directamente.")
                     elif estado == "rechazado":
                         send_rejection_email(solicitud_data, user, razon)
 

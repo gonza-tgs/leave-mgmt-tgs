@@ -37,8 +37,9 @@ CONDICIONES_ADMINISTRATIVO = """
 ### Permiso Administrativo
 
 - **Cupo anual:** Máximo **3 días** por año. Media jornada cuenta como 0.5 días.
-- **Días prohibidos:** No se permiten permisos administrativos los días **lunes**, **viernes**, vísperas de feriado ni días posteriores a un feriado.
-- **Días consecutivos:** No se permiten permisos administrativos en días consecutivos a otros ya aprobados. Si ocurre, la solicitud queda pendiente de revisión.
+- **Días en revisión:** Los permisos administrativos solicitados los días **lunes** y **viernes** no se rechazan automáticamente, sino que quedan **pendientes** de revisión especial por parte de la Dirección.
+- **Días prohibidos:** No se permiten permisos administrativos en días feriados, vísperas de feriado ni días posteriores a un feriado (se rechazan automáticamente).
+- **Días consecutivos:** No se permiten en días consecutivos. Si ocurre, la solicitud queda pendiente de revisión por parte de la Dirección.
 - **Límite institucional:** Máximo **2 permisos administrativos** por día en toda la institución. Si se alcanza, la solicitud queda pendiente de revisión.
 - **Material de reemplazo:** Debes entregar material para el día solicitado. La administración verificará este requisito.
 """
