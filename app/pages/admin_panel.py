@@ -282,3 +282,68 @@ def render_admin_panel(user):
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al registrar permiso histórico: {e}")
+
+    # --- Eliminar o Cancelar Permisos Registrados ---
+    st.divider()
+    with st.expander("🗑️ Eliminar o Cancelar Permisos Registrados", expanded=False):
+        st.caption(
+            "Usa esta sección para eliminar de forma definitiva cualquier permiso registrado en la base de datos "
+            "(ya sea pendiente, aprobado o rechazado). Esta acción no se puede deshacer."
+        )
+
+        if is_read_only:
+            st.warning("Modo Solo Lectura: No puedes eliminar permisos.")
+        else:
+            # Obtener lista de usuarios para búsqueda
+            users_profiles = get_profiles_for_admin()
+            users_map_del = {f"{u.get('full_name') or 'Sin Nombre'} ({u['email']})": u["id"] for u in users_profiles}
+            
+            selected_user_del_label = st.selectbox(
+                "Buscar por Funcionario (opcional)", 
+                options=["Todos"] + list(users_map_del.keys()),
+                key="selectbox_del_user"
+            )
+
+            # Query de las últimas solicitudes
+            try:
+                query_del = supabase.table("solicitudes").select("*, profiles(full_name, email)")
+                if selected_user_del_label != "Todos":
+                    query_del = query_del.eq("user_id", users_map_del[selected_user_del_label])
+                
+                # Obtenemos las últimas 25 solicitudes registradas
+                result_del = query_del.order("created_at", desc=True).limit(25).execute()
+                recent_solicitudes = result_del.data or []
+
+                if not recent_solicitudes:
+                    st.info("No se encontraron solicitudes registradas.")
+                else:
+                    st.write(f"Mostrando los últimos {len(recent_solicitudes)} registros:")
+                    for sol in recent_solicitudes:
+                        profile = sol.get("profiles") or {}
+                        tipo_label = TIPO_PERMISO_LABELS.get(sol['tipo_permiso'], sol['tipo_permiso'])
+                        estado_label = ESTADO_LABELS.get(sol['estado'], sol['estado'])
+                        
+                        col_info, col_btn = st.columns([4, 1])
+                        with col_info:
+                            st.markdown(
+                                f"**{profile.get('full_name') or 'Sin Nombre'}** — Fecha: **{sol['fecha_inicio']}** "
+                                f"({JORNADA_LABELS.get(sol['jornada'], sol['jornada'])})  \n"
+                                f"🏷️ *Tipo:* {tipo_label} | *Estado:* `{estado_label}`"
+                            )
+                            if sol.get("motivo"):
+                                st.caption(f"💬 *Motivo:* {sol['motivo']}")
+                            if sol.get("admin_nota"):
+                                st.caption(f"📝 *Nota Admin:* {sol['admin_nota']}")
+                        
+                        with col_btn:
+                            if st.button("Eliminar", key=f"btn_del_{sol['id']}", type="secondary", icon="🗑️"):
+                                try:
+                                    supabase.table("solicitudes").delete().eq("id", sol["id"]).execute()
+                                    get_user_solicitudes.clear()
+                                    st.success(f"Permiso eliminado correctamente.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar: {e}")
+                        st.divider()
+            except Exception as e:
+                st.error(f"Error al cargar registros: {e}")
