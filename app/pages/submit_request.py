@@ -41,6 +41,7 @@ def render_submit_request(user):
         max_value=date.today() + timedelta(days=90),
         help="Puedes solicitar permisos hasta con 90 días de anticipación."
     )
+    st.caption("ℹ️ *Solo se pueden solicitar permisos dentro de los próximos **90 días** a partir de hoy.*")
     
     # Selección de jornada
     jornada = st.radio(

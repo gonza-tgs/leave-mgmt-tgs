@@ -29,7 +29,8 @@ ROL_LABELS = {
 CONDICIONES_GENERALES = """
 ### Condiciones generales (aplican a todos los permisos)
 
-- **Anticipación:** La solicitud de permisos administrativos debe hacerse con al menos **14 días** de anticipación. Solicitudes con menos tiempo se rechazarán automáticamente.
+- **Anticipación mínima:** La solicitud de permisos administrativos debe hacerse con al menos **14 días** de anticipación. Solicitudes con menos tiempo se rechazarán automáticamente.
+- **Anticipación máxima:** Solo se permite solicitar y agendar permisos con un máximo de **90 días** de anticipación desde la fecha actual.
 - **Días bloqueados:** No se permiten permisos en fines de semana, feriados nacionales, días no laborables internos definidos por la administración, ni dentro de periodos bloqueados.
 """
 
