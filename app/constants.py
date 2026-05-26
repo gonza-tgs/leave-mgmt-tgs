@@ -29,7 +29,7 @@ ROL_LABELS = {
 CONDICIONES_GENERALES = """
 ### Condiciones generales (aplican a todos los permisos)
 
-- **Anticipación:** La solicitud debe hacerse con al menos **14 días** de anticipación. Solicitudes con menos tiempo serán rechazadas automáticamente.
+- **Anticipación:** La solicitud de permisos administrativos debe hacerse con al menos **14 días** de anticipación. Solicitudes con menos tiempo se rechazarán automáticamente.
 - **Días bloqueados:** No se permiten permisos en fines de semana, feriados nacionales, días no laborables internos definidos por la administración, ni dentro de periodos bloqueados.
 """
 
@@ -37,11 +37,10 @@ CONDICIONES_ADMINISTRATIVO = """
 ### Permiso Administrativo
 
 - **Cupo anual:** Máximo **3 días** por año. Media jornada cuenta como 0.5 días.
-- **Días en revisión:** Los permisos administrativos solicitados los días **lunes** y **viernes** no se rechazan automáticamente, sino que quedan **pendientes** de revisión especial por parte de la Dirección.
 - **Días prohibidos:** No se permiten permisos administrativos en días feriados, vísperas de feriado ni días posteriores a un feriado (se rechazan automáticamente).
 - **Días consecutivos:** No se permiten en días consecutivos. Si ocurre, la solicitud queda pendiente de revisión por parte de la Dirección.
 - **Límite institucional:** Máximo **2 permisos administrativos** por día en toda la institución. Si se alcanza, la solicitud queda pendiente de revisión.
-- **Material de reemplazo:** Debes entregar material para el día solicitado. La administración verificará este requisito.
+- **Material de reemplazo:** Debe entregar material para el día solicitado. La administración verificará este requisito.
 """
 
 CONDICIONES_CON_GOCE = """
@@ -73,7 +72,7 @@ Para situaciones personales que no califican en las categorías anteriores. Debe
 # --- Sugerencias para rechazos automáticos ---
 
 SUGERENCIA_RECHAZO_ANTICIPACION = """
-💡 **Sugerencia:** Los permisos requieren al menos 14 días de anticipación. Si tu situación es urgente y califica dentro de las causales de *Con Goce de Sueldo* (fallecimiento, parental, salud) o necesitas un *Sin Goce de Sueldo*, puedes intentar con esos tipos de permiso indicando claramente el motivo.
+💡 **Sugerencia:** Los permisos administrativos requieren al menos 14 días de anticipación. Si tu situación es urgente y califica dentro de las causales de *Con Goce de Sueldo* (fallecimiento, parental, salud) o necesitas un *Sin Goce de Sueldo*, puedes intentar con esos tipos de permiso indicando claramente el motivo.
 """
 
 SUGERENCIA_RECHAZO_BLOQUEO = """
