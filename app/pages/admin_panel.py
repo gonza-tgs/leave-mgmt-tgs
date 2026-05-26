@@ -1,7 +1,9 @@
 import streamlit as st
-from app.database import get_supabase_admin, get_user_solicitudes, get_profiles_for_admin
+from datetime import timedelta
+from app.database import get_supabase_admin, get_user_solicitudes, get_profiles_for_admin, get_feriados_internos
 from app.constants import TIPO_PERMISO_LABELS, JORNADA_LABELS, ESTADO_LABELS
 from app.notifications import send_approval_email, send_rejection_email
+from app.services.leave_rules import is_blocked_day
 
 
 def render_admin_panel(user):
@@ -171,56 +173,112 @@ def render_admin_panel(user):
             users_profiles = get_profiles_for_admin()
             users_map = {f"{u.get('full_name') or 'Sin Nombre'} ({u['email']})": u["id"] for u in users_profiles}
 
-            with st.form("form_historico"):
-                selected_user_label = st.selectbox("Usuario *", options=list(users_map.keys()))
-                tipo_permiso_hist = st.selectbox(
-                    "Tipo de Permiso *",
-                    options=list(TIPO_PERMISO_LABELS.keys()),
-                    format_func=lambda x: TIPO_PERMISO_LABELS[x],
-                )
-                fecha_hist = st.date_input("Fecha del Permiso *", value=None)
-                jornada_hist = st.selectbox(
-                    "Jornada *",
-                    options=list(JORNADA_LABELS.keys()),
-                    format_func=lambda x: JORNADA_LABELS[x],
-                )
-                estado_hist = st.selectbox(
-                    "Estado *",
-                    options=["aprobado_manual", "rechazado", "pendiente"],
-                    format_func=lambda x: ESTADO_LABELS.get(x, x),
-                    index=0,
-                    help='"Aprobado" para permisos ya otorgados; "Rechazado" para solicitudes denegadas; "Pendiente" si aún requiere revisión.',
-                )
-                motivo_hist = st.text_area("Motivo", placeholder="Motivo del permiso...")
-                admin_nota_hist = st.text_input("Nota administrativa (opcional)", placeholder="Registro histórico — abril 2025")
-                col_pago_hist, col_mat_hist = st.columns(2)
-                with col_pago_hist:
-                    es_pagado_hist = st.checkbox("Permiso Remunerado (es_pagado)", value=tipo_permiso_hist in ["administrativo", "con_goce"])
-                with col_mat_hist:
-                    material_entregado_hist = st.checkbox("Material de reemplazo entregado", value=False)
+            # Selección de tipo de registro
+            tipo_registro_hist = st.radio(
+                "Tipo de Registro *",
+                options=["Día Único", "Rango de Fechas"],
+                horizontal=True,
+                key="tipo_registro_hist"
+            )
 
-                submitted_hist = st.form_submit_button("Registrar Permiso", icon="📋")
+            selected_user_label = st.selectbox("Usuario *", options=list(users_map.keys()), key="user_hist")
+            tipo_permiso_hist = st.selectbox(
+                "Tipo de Permiso *",
+                options=list(TIPO_PERMISO_LABELS.keys()),
+                format_func=lambda x: TIPO_PERMISO_LABELS[x],
+                key="tipo_permiso_hist"
+            )
 
-                if submitted_hist:
-                    if not fecha_hist:
-                        st.error("Debes seleccionar una fecha.")
+            if tipo_registro_hist == "Día Único":
+                fecha_hist = st.date_input("Fecha del Permiso *", value=None, key="fecha_hist")
+                fecha_inicio_hist = None
+                fecha_fin_hist = None
+                excluir_bloqueados_hist = False
+            else:
+                fecha_hist = None
+                col_ini, col_f = st.columns(2)
+                with col_ini:
+                    fecha_inicio_hist = st.date_input("Fecha de Inicio *", value=None, key="fecha_inicio_hist")
+                with col_f:
+                    fecha_fin_hist = st.date_input("Fecha de Fin *", value=None, key="fecha_fin_hist")
+                excluir_bloqueados_hist = st.checkbox(
+                    "Excluir fines de semana y feriados (nacionales e internos)",
+                    value=True,
+                    help="Si está marcado, solo se registrarán permisos en días hábiles (lunes a viernes, excluyendo feriados nacionales e internos). Si está desmarcado, se registrará un permiso para todos los días dentro del rango.",
+                    key="excluir_bloqueados_hist"
+                )
+
+            jornada_hist = st.selectbox(
+                "Jornada *",
+                options=list(JORNADA_LABELS.keys()),
+                format_func=lambda x: JORNADA_LABELS[x],
+                key="jornada_hist"
+            )
+            estado_hist = st.selectbox(
+                "Estado *",
+                options=["aprobado_manual", "rechazado", "pendiente"],
+                format_func=lambda x: ESTADO_LABELS.get(x, x),
+                index=0,
+                help='"Aprobado" para permisos ya otorgados; "Rechazado" para solicitudes denegadas; "Pendiente" si aún requiere revisión.',
+                key="estado_hist"
+            )
+            motivo_hist = st.text_area("Motivo", placeholder="Motivo del permiso...", key="motivo_hist")
+            admin_nota_hist = st.text_input("Nota administrativa (opcional)", placeholder="Registro histórico — abril 2025", key="admin_nota_hist")
+            col_pago_hist, col_mat_hist = st.columns(2)
+            with col_pago_hist:
+                es_pagado_hist = st.checkbox("Permiso Remunerado (es_pagado)", value=tipo_permiso_hist in ["administrativo", "con_goce"], key="es_pagado_hist")
+            with col_mat_hist:
+                material_entregado_hist = st.checkbox("Material de reemplazo entregado", value=False, key="material_entregado_hist")
+
+            submitted_hist = st.button("Registrar Permiso", icon="📋", type="primary", key="btn_submitted_hist")
+
+            if submitted_hist:
+                if tipo_registro_hist == "Día Único" and not fecha_hist:
+                    st.error("Debes seleccionar una fecha.")
+                elif tipo_registro_hist == "Rango de Fechas" and (not fecha_inicio_hist or not fecha_fin_hist):
+                    st.error("Debes seleccionar ambas fechas del rango.")
+                elif tipo_registro_hist == "Rango de Fechas" and (fecha_inicio_hist > fecha_fin_hist):
+                    st.error("La fecha de inicio no puede ser posterior a la fecha de fin.")
+                else:
+                    target_user_id = users_map[selected_user_label]
+                    
+                    # Generar las fechas a insertar
+                    dates_to_insert = []
+                    if tipo_registro_hist == "Día Único":
+                        dates_to_insert = [fecha_hist]
                     else:
-                        target_user_id = users_map[selected_user_label]
-                        insert_data = {
-                            "user_id": target_user_id,
-                            "tipo_permiso": tipo_permiso_hist,
-                            "fecha_inicio": str(fecha_hist),
-                            "jornada": jornada_hist,
-                            "estado": estado_hist,
-                            "es_pagado": es_pagado_hist,
-                            "material_entregado": material_entregado_hist,
-                            "motivo": motivo_hist.strip() or None,
-                            "admin_nota": admin_nota_hist.strip() or None,
-                        }
+                        curr = fecha_inicio_hist
+                        feriados = get_feriados_internos() if excluir_bloqueados_hist else []
+                        while curr <= fecha_fin_hist:
+                            if excluir_bloqueados_hist:
+                                bloqueado, _ = is_blocked_day(curr, feriados)
+                                if not bloqueado:
+                                    dates_to_insert.append(curr)
+                            else:
+                                dates_to_insert.append(curr)
+                            curr += timedelta(days=1)
+                    
+                    if not dates_to_insert:
+                        st.error("No hay días válidos para registrar en el rango seleccionado bajo la configuración actual.")
+                    else:
+                        insert_data_list = []
+                        for d in dates_to_insert:
+                            insert_data_list.append({
+                                "user_id": target_user_id,
+                                "tipo_permiso": tipo_permiso_hist,
+                                "fecha_inicio": str(d),
+                                "jornada": jornada_hist,
+                                "estado": estado_hist,
+                                "es_pagado": es_pagado_hist,
+                                "material_entregado": material_entregado_hist,
+                                "motivo": motivo_hist.strip() or None,
+                                "admin_nota": admin_nota_hist.strip() or None,
+                            })
+                        
                         try:
-                            supabase.table("solicitudes").insert(insert_data).execute()
+                            supabase.table("solicitudes").insert(insert_data_list).execute()
                             get_user_solicitudes.clear()
-                            st.success("Permiso histórico registrado correctamente.")
+                            st.success(f"Permiso histórico registrado correctamente ({len(dates_to_insert)} días registrados).")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al registrar permiso histórico: {e}")
