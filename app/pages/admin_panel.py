@@ -230,7 +230,7 @@ def render_admin_panel(user):
             with col_mat_hist:
                 material_entregado_hist = st.checkbox("Material de reemplazo entregado", value=False, key="material_entregado_hist")
 
-            submitted_hist = st.button("Registrar Permiso", icon="📋", type="primary", key="btn_submitted_hist")
+            submitted_hist = st.button("📋 Revisar y Confirmar", type="primary", key="btn_submitted_hist")
 
             if submitted_hist:
                 if tipo_registro_hist == "Día Único" and not fecha_hist:
@@ -261,27 +261,75 @@ def render_admin_panel(user):
                     if not dates_to_insert:
                         st.error("No hay días válidos para registrar en el rango seleccionado bajo la configuración actual.")
                     else:
-                        insert_data_list = []
-                        for d in dates_to_insert:
-                            insert_data_list.append({
-                                "user_id": target_user_id,
-                                "tipo_permiso": tipo_permiso_hist,
-                                "fecha_inicio": str(d),
-                                "jornada": jornada_hist,
-                                "estado": estado_hist,
-                                "es_pagado": es_pagado_hist,
-                                "material_entregado": material_entregado_hist,
-                                "motivo": motivo_hist.strip() or None,
-                                "admin_nota": admin_nota_hist.strip() or None,
-                            })
-                        
+                        # Store pending data in session state for confirmation step
+                        st.session_state["hist_pending"] = {
+                            "target_user_id": target_user_id,
+                            "tipo_permiso": tipo_permiso_hist,
+                            "jornada": jornada_hist,
+                            "estado": estado_hist,
+                            "es_pagado": es_pagado_hist,
+                            "material_entregado": material_entregado_hist,
+                            "motivo": motivo_hist.strip() or None,
+                            "admin_nota": admin_nota_hist.strip() or None,
+                            "dates_to_insert": [str(d) for d in dates_to_insert],
+                            "selected_user_label": selected_user_label,
+                        }
+                        st.rerun()
+
+            # --- Confirmation step ---
+            if st.session_state.get("hist_pending"):
+                pending = st.session_state["hist_pending"]
+                dates = pending["dates_to_insert"]
+                n_days = len(dates)
+                first_date = min(dates)
+                last_date = max(dates)
+
+                st.warning("⚠️ **Revisa los datos antes de confirmar la carga de permisos históricos.**")
+                st.markdown(
+                    f"""
+| Campo | Valor |
+|---|---|
+| **Usuario** | {pending['selected_user_label']} |
+| **Tipo de permiso** | {TIPO_PERMISO_LABELS.get(pending['tipo_permiso'], pending['tipo_permiso'])} |
+| **Jornada** | {JORNADA_LABELS.get(pending['jornada'], pending['jornada'])} |
+| **Estado** | {ESTADO_LABELS.get(pending['estado'], pending['estado'])} |
+| **Días a registrar** | {n_days} |
+| **Rango de fechas** | {first_date} → {last_date} |
+| **Permiso remunerado** | {'✅ Sí' if pending['es_pagado'] else '❌ No'} |
+| **Material de reemplazo** | {'✅ Entregado' if pending['material_entregado'] else '❌ No entregado'} |
+"""
+                )
+                if n_days > 1:
+                    st.info(f"Se registrará **1 permiso por cada día hábil** dentro del rango ({n_days} registros en total).")
+
+                col_conf, col_cancel = st.columns(2)
+                with col_conf:
+                    if st.button("✅ Confirmar Registro", type="primary", key="btn_confirm_hist"):
                         try:
+                            insert_data_list = []
+                            for d in dates:
+                                insert_data_list.append({
+                                    "user_id": pending["target_user_id"],
+                                    "tipo_permiso": pending["tipo_permiso"],
+                                    "fecha_inicio": d,
+                                    "jornada": pending["jornada"],
+                                    "estado": pending["estado"],
+                                    "es_pagado": pending["es_pagado"],
+                                    "material_entregado": pending["material_entregado"],
+                                    "motivo": pending["motivo"],
+                                    "admin_nota": pending["admin_nota"],
+                                })
                             supabase.table("solicitudes").insert(insert_data_list).execute()
                             get_user_solicitudes.clear()
-                            st.success(f"Permiso histórico registrado correctamente ({len(dates_to_insert)} días registrados).")
+                            del st.session_state["hist_pending"]
+                            st.success(f"✅ Permiso histórico registrado correctamente ({n_days} días registrados para {pending['selected_user_label']}).")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al registrar permiso histórico: {e}")
+                with col_cancel:
+                    if st.button("❌ Cancelar", key="btn_cancel_hist"):
+                        del st.session_state["hist_pending"]
+                        st.rerun()
 
     # --- Eliminar o Cancelar Permisos Registrados ---
     st.divider()
