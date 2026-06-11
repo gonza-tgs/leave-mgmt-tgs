@@ -22,9 +22,36 @@ def render_admin_reports():
             selected_user_name = st.selectbox("Usuario", options=["Todos"] + list(users_list.keys()))
 
         with col2:
-            current_year = datetime.date.today().year
-            year_options = ["Todos"] + list(range(current_year, current_year - 5, -1))
-            selected_year = st.selectbox("Año", options=year_options, index=1)
+            date_filter_option = st.selectbox(
+                "Filtro de Fecha",
+                options=["Año Actual", "Año Anterior", "Rango Personalizado", "Todos"],
+                index=0
+            )
+            
+            selected_start_date = None
+            selected_end_date = None
+            
+            if date_filter_option == "Año Actual":
+                today = datetime.date.today()
+                selected_start_date = datetime.date(today.year, 1, 1)
+                selected_end_date = datetime.date(today.year, 12, 31)
+            elif date_filter_option == "Año Anterior":
+                today = datetime.date.today()
+                selected_start_date = datetime.date(today.year - 1, 1, 1)
+                selected_end_date = datetime.date(today.year - 1, 12, 31)
+            elif date_filter_option == "Rango Personalizado":
+                today = datetime.date.today()
+                default_start = today - datetime.timedelta(days=30)
+                date_range = st.date_input(
+                    "Seleccione Rango",
+                    value=(default_start, today),
+                    max_value=datetime.date(today.year + 1, 12, 31),
+                    help="Seleccione la fecha de inicio y término en el calendario."
+                )
+                if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
+                    selected_start_date, selected_end_date = date_range
+                elif isinstance(date_range, (tuple, list)) and len(date_range) == 1:
+                    st.warning("Seleccione la fecha de término para aplicar el filtro.")
 
         with col3:
             selected_states = st.multiselect(
@@ -47,10 +74,10 @@ def render_admin_reports():
     if selected_user_name != "Todos":
         query = query.eq("user_id", users_list[selected_user_name])
 
-    if selected_year != "Todos":
+    if selected_start_date and selected_end_date:
         query = query\
-            .gte("fecha_inicio", f"{selected_year}-01-01")\
-            .lte("fecha_inicio", f"{selected_year}-12-31")
+            .gte("fecha_inicio", selected_start_date.isoformat())\
+            .lte("fecha_inicio", selected_end_date.isoformat())
 
     if selected_states:
         query = query.in_("estado", selected_states)
